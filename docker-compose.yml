@@ -1,0 +1,21 @@
+version: "3.7"
+services:
+
+  workbench:
+    image: codingmatters/nosql-workbench:1.0.0-dev
+    volumes:
+      - "./workspace:/usr/src/app/workspace"
+    ports:
+      - "9999:8080"
+    command: ["node", "app.js", "--server"]
+
+  mongo:
+    image: mongo:4.2.2
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.5.2
+    environment:
+      - discovery.type=single-node
+
+  cassandra:
+    image: cassandra:3.11.5

@@ -1,0 +1,18 @@
+{
+  "name": "ufc-m1-ead-info-nosql-workbench",
+  "version": "1.0.0-dev",
+  "description": "webapp enabling interacting with several NoSQL dbs for educational use.",
+  "dependencies": {
+    "mongodb": "3.5.2",
+    "@elastic/elasticsearch": "7.5.0",
+    "cassandra-driver": "4.4.0",
+    "csv": "5.3.1"
+  },
+  "keywords": [],
+  "author": "Nel Taurisson <nel.taurisson@gmail.com>",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nelt/ufc-m1-ead-info-nosql-workbench.git"
+  }
+}
