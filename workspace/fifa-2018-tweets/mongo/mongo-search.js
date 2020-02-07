@@ -1,7 +1,6 @@
 
 exports.handleRequest = async function (req, res) {
     res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
-    pageStart(res, "FIFA Tweets : MongoDB");
 
     var url = require('url');
     const parsedQuery = url.parse(req.url, true);
@@ -20,6 +19,9 @@ exports.handleRequest = async function (req, res) {
         tag: parsedQuery.query.tag,
         fulltext: parsedQuery.query.fulltext
     }
+
+
+    pageStart(res, "FIFA Tweets : MongoDB", `Tweets${filters.tag ? ' - filtrés par hashtag : ' + filters.tag : ''}${filters.fulltext ? ' - avec critère fulltexte : ' + filters.fulltext : ''}`);
 
     await tags(db, res, parsedQuery);
     await tweets(db, res, filters);
@@ -92,9 +94,9 @@ async function tweets(db, res, filters) {
 function tagBarStart(res) {
     res.write(
         `
-        <nav class="col-md-2 d-none d-md-block bg-light sidebar">
-        <div class="sidebar-sticky">
-        <ul class="nav flex-column">
+        <nav class="col-md-2 bg-light sidebar">
+            <div class="sidebar-sticky">
+                <ul class="nav flex-column">
         `
     )
 }
@@ -102,9 +104,9 @@ function tagBarStart(res) {
 function tagNav(res, tag, count, selected) {
     res.write(
         `
-          <li class="nav-item">
-            <a class="nav-link${selected ? ' active' : ''}" href="${tag != 'tous' ? '?tag=' + tag : '?'}">${tag}${count ? ' (' + count + ')' : ''}</a>
-          </li>
+              <li class="nav-item">
+                <a class="nav-link${selected ? ' active' : ''}" href="${tag != 'tous' ? '?tag=' + tag : '?'}">${tag}${count ? ' (' + count + ')' : ''}</a>
+              </li>
         `
     )
 }
@@ -113,8 +115,8 @@ function tagBarEnd(res) {
 
     res.write(
         `
-        </ul>
-      </div>
+            </ul>
+          </div>
       </nav>
         `
     )
@@ -123,7 +125,7 @@ function tagBarEnd(res) {
 function tweetContainerStart(res) {
     res.write(
         `
-        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
+        <main role="main" class="col-md-10">
         `
     )
 }
@@ -148,8 +150,8 @@ async function tweetNavigation(res, filters) {
     res.write(
         `
         <div>
-        <nav class="navbar">
-            <ul class="nav navbar-nav pagination">
+        <nav class="navbar navbar-expand-lg">
+            <ul class="nav navbar-nav pagination navbar-expand-lg navbar-light bg-light">
         `)
     if(filters.pageNumber > 0) {
         res.write(
@@ -219,7 +221,7 @@ function tableEnd(res) {
     )
 }
 
-function pageStart(res, title) {
+function pageStart(res, title, resume) {
 
     res.write(
         `
@@ -233,12 +235,12 @@ function pageStart(res, title) {
         <head>
             <title>${title}</title>
             <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
+            <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
         </head>
         <body>
-            <div class="container-fluid">
+            <div class="container">
+                <div class="row"><h1 class="display-4 text-center">${resume}</h1></div>
                 <div class="row">
-                        
-                        
         `)
 }
 
