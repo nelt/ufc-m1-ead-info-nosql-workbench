@@ -5,9 +5,8 @@ exports.handleRequest = async function (req, res) {
     var url = require('url');
     const parsedQuery = url.parse(req.url, true);
 
-    const MongoClient = require('mongodb').MongoClient
-    mogoClient = await MongoClient.connect('mongodb://mongo:27017', { useUnifiedTopology: true })
-    const db = mogoClient.db("fifa_tweets")
+    const {Client} = require('@elastic/elasticsearch')
+    const esClient = new Client({node: 'http://elasticsearch:9200'})
 
     console.info('path : ' + parsedQuery.pathname)
 
@@ -20,35 +19,49 @@ exports.handleRequest = async function (req, res) {
         fulltext: parsedQuery.query.fulltext
     }
 
+    pageStart(res, "FIFA Tweets : Elasticsearch", `Tweets${filters.tag ? ' - filtrés par hashtag : ' + filters.tag : ''}${filters.fulltext ? ' - avec critère fulltext : ' + filters.fulltext : ''}`);
 
-    pageStart(res, "FIFA Tweets : MongoDB", `Tweets${filters.tag ? ' - filtrés par hashtag : ' + filters.tag : ''}${filters.fulltext ? ' - avec critère fulltext : ' + filters.fulltext : ''}`);
 
-    await tags(db, res, parsedQuery);
-    await tweets(db, res, filters);
+    await tags(esClient, res, parsedQuery);
+    await tweets(esClient, res, filters);
 
     pageEnd(res)
     res.end()
 }
 
-async function tweets(db, res, filters) {
+async function tweets(esClient, res, filters) {
     try {
-        const tweets = db.collection('tweets')
 
-        q = {}
+// https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
+        const q = {bool: {must: []}}
+
         if(filters.tag) {
-            q['hashtags'] = {$eq: filters.tag}
+            q.bool.must.push({match: {hashtags: filters.tag}})
         }
 
-        // https://docs.mongodb.com/manual/text-search/
         if(filters.fulltext) {
-            q['$text'] = {$search: filters.fulltext}
+            q.bool.must.push({match: {tweet: filters.fulltext}})
         }
 
-        const cursor = tweets
-            .find(q)
-            .sort({date: 1}).limit(filters.pageSize).skip(filters.pageNumber * 30)
+        if(q.bool.must.length == 0) {
+            q.bool.must.push({match_all: {}})
+        }
 
-        filters.total = await cursor.count()
+        console.log("query : ", q)
+        const page = await esClient.search({
+            index: 'tweets',
+            sort: ['date'],
+            from: filters.pageNumber * filters.pageSize + 1,
+            size: filters.pageSize,
+            body: {
+                query: q,
+                aggs: {
+                    tags: {terms: {field: 'hashtags'}}
+                }
+            }
+        })
+
+        filters.total = page.body.hits.total.value
         filters.lastPage = Math.floor(filters.total / filters.pageSize)
         filters.start = filters.pageNumber * filters.pageSize + 1
         filters.end = Math.min(filters.start + filters.pageSize - 1, filters.total)
@@ -59,12 +72,12 @@ async function tweets(db, res, filters) {
         tweetContainerStart(res)
         tweetNavigation(res, filters)
 
-
         tableStart(res, "Date", "Auteur", "Tweet", "Hashtags")
-        while (await cursor.hasNext()) {
-            const tweet = await cursor.next()
+        page.body.hits.hits.forEach(hit => {
+            tweet = hit._source;
             tableRow(res, tweet.date, tweet.authorName, tweet.tweet, tweet.hashtags.join(', '))
-        }
+        })
+
         tableEnd(res)
         tweetContainerEnd(res)
     } catch (e) {
@@ -73,21 +86,23 @@ async function tweets(db, res, filters) {
     }
 }
 
-async function tags(db, res, parsedQuery) {
+async function tags(esClient, res, parsedQuery) {
+    const page = await esClient.search({
+        index: 'tweets',
+        body: {
+            aggs: {
+                tags: {terms: {field: 'hashtags'}}
+            }
+        }
+    })
+
     tagBarStart(res)
     tagNav(res, 'tous', null, false)
 
-    try {
-        const hashtags = db.collection('hashtags')
-        const cursor = hashtags.find({}).sort({count: -1}).limit(100)
-        while (await cursor.hasNext()) {
-            const tag = await cursor.next()
-            tagNav(res, tag.tag, tag.count, false)
-        }
-    } catch (e) {
-        console.error("error :: " + e)
-        console.error(e.stackTrace)
-    }
+    console.log(page.body.aggregations.tags.buckets);
+    page.body.aggregations.tags.buckets.forEach(bucket => {
+        tagNav(res, bucket.key, bucket.doc_count, false)
+    })
     tagBarEnd(res)
 }
 
