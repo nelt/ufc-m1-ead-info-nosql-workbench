@@ -18,6 +18,16 @@ exports.handleRequest = async function (req, res) {
         tag: parsedQuery.query.tag,
         fulltext: parsedQuery.query.fulltext
     }
+    if(parsedQuery.query.search_after) {
+        filters.search_after = JSON.parse(parsedQuery.query.search_after)
+    }
+    if(parsedQuery.query.tagFacets) {
+        if(Array.isArray(parsedQuery.query.tagFacets)) {
+            filters.tagFacets = parsedQuery.query.tagFacets
+        } else {
+            filters.tagFacets = [parsedQuery.query.tagFacets]
+        }
+    }
 
     pageStart(res, "FIFA Tweets : Elasticsearch", `Tweets${filters.tag ? ' - filtrés par hashtag : ' + filters.tag : ''}${filters.fulltext ? ' - avec critère fulltext : ' + filters.fulltext : ''}`);
 
@@ -38,20 +48,27 @@ async function tweets(esClient, res, filters) {
         if(filters.tag) {
             q.bool.must.push({match: {hashtags: filters.tag}})
         }
+        if(filters.tagFacets) {
+            filters.tagFacets.forEach(facet => q.bool.must.push({match: {hashtags: facet}}))
 
+        }
         if(filters.fulltext) {
             q.bool.must.push({match: {tweet: filters.fulltext}})
         }
-
         if(q.bool.must.length == 0) {
             q.bool.must.push({match_all: {}})
         }
 
         console.log("query : ", q)
-        const page = await esClient.search({
+        const countResponse = await esClient.count({
             index: 'tweets',
-            sort: ['date'],
-            from: filters.pageNumber * filters.pageSize + 1,
+            body: {
+                query: q
+            }
+        })
+        const search = {
+            index: 'tweets',
+            sort: ['date', '_id'],
             size: filters.pageSize,
             body: {
                 query: q,
@@ -59,18 +76,31 @@ async function tweets(esClient, res, filters) {
                     tags: {terms: {field: 'hashtags'}}
                 }
             }
-        })
+        }
 
-        filters.total = page.body.hits.total.value
-        filters.lastPage = Math.floor(filters.total / filters.pageSize)
+        //https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-body.html#request-body-search-search-after
+        if(filters.search_after) {
+            search.body.search_after = filters.search_after
+        }
+        const page = await esClient.search(search)
+
+        filters.total = countResponse.body.count
         filters.start = filters.pageNumber * filters.pageSize + 1
         filters.end = Math.min(filters.start + filters.pageSize - 1, filters.total)
+        if(filters.search_after) {
+            filters.previous_search_after = encodeURIComponent(JSON.stringify(filters.search_after))
+            filters.search_after = undefined
+        }
+        if(page.body.hits.hits.length > 0) {
+            filters.search_after = encodeURIComponent(JSON.stringify(page.body.hits.hits[page.body.hits.hits.length - 1].sort))
+        }
 
         console.info("FILTERS :: ", filters)
         console.info("QUERY   :: ", q)
 
         tweetContainerStart(res)
         tweetNavigation(res, filters)
+        tagsFacets(res, page.body.aggregations.tags, filters)
 
         tableStart(res, "Date", "Auteur", "Tweet", "Hashtags")
         page.body.hits.hits.forEach(hit => {
@@ -99,11 +129,49 @@ async function tags(esClient, res, parsedQuery) {
     tagBarStart(res)
     tagNav(res, 'tous', null, false)
 
-    console.log(page.body.aggregations.tags.buckets);
     page.body.aggregations.tags.buckets.forEach(bucket => {
         tagNav(res, bucket.key, bucket.doc_count, false)
     })
     tagBarEnd(res)
+}
+
+function tagsFacets(res, tags, filters) {
+    let baseQuery = baseQueryString(filters)
+    console.log("baseQuery=" + baseQuery)
+    if(filters.tagFacets) {
+        res.write('<p>Facettes sélectionnées : ')
+        res.write(filters.tagFacets.join(', '))
+        res.write('</p>')
+    }
+
+    res.write('<p>')
+    tags.buckets.forEach(bucket => {
+        const tag = bucket.key
+        const count = bucket.doc_count
+        const selected = false
+        res.write(
+            `
+                <a class="nav-link${selected ? ' active' : ''}" href="${baseQuery}tagFacets=${tag}">${tag}</a>&nbsp;(${count}) - 
+        `
+        )
+    })
+    res.write('</p>')
+}
+
+
+
+function baseQueryString(filters) {
+    let baseQuery = '?';
+    if(filters.tag) {
+        baseQuery += 'tag=' + filters.tag + '&';
+    }
+    if(filters.fulltext) {
+        baseQuery += 'fulltext=' + filters.fulltext + '&'
+    }
+    if(filters.tagFacets) {
+        filters.tagFacets.forEach(facet => baseQuery += "tagFacets=" + facet + "&")
+    }
+    return baseQuery
 }
 
 /*
@@ -160,38 +228,33 @@ function tweetContainerEnd(res) {
 }
 
 async function tweetNavigation(res, filters) {
-    var baseReq = "?"
-    if(filters.tag) {
-        baseReq += 'tag=' + filters.tag + '&'
-    }
-    if(filters.fulltext) {
-        baseReq += 'fulltext=' + filters.fulltext + '&'
-    }
-
+    let baseReq = baseQueryString(filters);
     res.write(
         `
         <div>
         <nav class="navbar navbar-expand-lg">
             <ul class="nav navbar-nav pagination navbar-expand-lg navbar-light bg-light">
         `)
+
+
     if(filters.pageNumber > 0) {
         res.write(
         `
-                <li class="page-item"><a class="page-link" href="${baseReq}page=0" aria-label="Previous"><span aria-hidden="true">&lt;&lt;</span></a></li>
-                <li class="page-item"><a class="page-link" href="${baseReq}page=${filters.pageNumber - 1}">&lt;</a></li>
+                <li class="page-item"><a class="page-link" href="${baseReq}"><span aria-hidden="true">&lt;&lt;</span></a></li>
+                <li class="page-item"><a class="page-link" href="${baseReq}page=${filters.pageNumber - 1}&search_after=${filters.previous_search_after}">&lt;</a></li>
         `)
     }
     res.write(
         `
-                <li class="page-item"><a class="page-link" href="#">Page ${filters.pageNumber} : ${filters.start} - ${filters.end} / ${filters.total}</a></li>
+                <li class="page-item"><a class="page-link" href="#">Page ${filters.pageNumber + 1} : ${filters.start} - ${filters.end} / ${filters.total}</a></li>
         `)
-    if(filters.pageNumber < filters.lastPage) {
+    if(filters.search_after && filters.end < filters.total) {
         res.write(
         `
-                <li class="page-item"><a class="page-link" href="${baseReq}page=${filters.pageNumber + 1}"><span aria-hidden="true">&gt;</span></a></li>
-                <li class="page-item"><a class="page-link" href="${baseReq}page=${filters.lastPage}" aria-label="Next"><span aria-hidden="true">&gt;&gt;</span></a></li>
+                <li class="page-item"><a class="page-link" href="${baseReq}page=${filters.pageNumber + 1}&search_after=${filters.search_after}"><span aria-hidden="true">&gt;</span></a></li>
         `)
     }
+
     res.write(
         `
             </ul>
@@ -202,7 +265,23 @@ async function tweetNavigation(res, filters) {
                       <input class="form-control" type="search" placeholder="Search" aria-label="Search" name="fulltext" value="${filters.fulltext ? filters.fulltext : ''}">
                       <button class="btn btn-outline-success" type="submit">Search</button>
                       <input type="hidden" name="page" value="0"/>
-                      <input type="hidden" name="tag" value="${filters.tag ? filters.tag : ''}"/>
+        `)
+    if(filters.tag) {
+        res.write(
+            `
+                      <input type="hidden" name="tag" value="${filters.tag}"/>
+        `)
+    }
+    if(filters.tagFacets) {
+        filters.tagFacets.forEach(facet => {
+            res.write(
+                `
+                      <input type="hidden" name="tagFacets" value="${facet}"/>
+                `)
+        })
+    }
+    res.write(
+        `
                     </form>
                 </li>
             </ul>

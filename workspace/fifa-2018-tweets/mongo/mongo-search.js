@@ -168,7 +168,7 @@ async function tweetNavigation(res, filters) {
     }
     res.write(
         `
-                <li class="page-item"><a class="page-link" href="#">Page ${filters.pageNumber} : ${filters.start} - ${filters.end} / ${filters.total}</a></li>
+                <li class="page-item"><a class="page-link" href="#">Page ${filters.pageNumber + 1} : ${filters.start} - ${filters.end} / ${filters.total}</a></li>
         `)
     if(filters.pageNumber < filters.lastPage) {
         res.write(
