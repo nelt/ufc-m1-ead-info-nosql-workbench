@@ -20,7 +20,6 @@ exports.handleRequest = async function (req, res) {
         fulltext: parsedQuery.query.fulltext
     }
 
-
     pageStart(res, "FIFA Tweets : MongoDB", `Tweets${filters.tag ? ' - filtrés par hashtag : ' + filters.tag : ''}${filters.fulltext ? ' - avec critère fulltext : ' + filters.fulltext : ''}`);
 
     await tags(db, res, parsedQuery);
@@ -59,7 +58,6 @@ async function tweets(db, res, filters) {
         tweetContainerStart(res)
         tweetNavigation(res, filters)
 
-
         tableStart(res, "Date", "Auteur", "Tweet", "Hashtags")
         while (await cursor.hasNext()) {
             const tweet = await cursor.next()
@@ -79,7 +77,7 @@ async function tags(db, res, parsedQuery) {
 
     try {
         const hashtags = db.collection('hashtags')
-        const cursor = hashtags.find({}).sort({count: -1}).limit(100)
+        const cursor = hashtags.find({}).sort({count: -1}).limit(10)
         while (await cursor.hasNext()) {
             const tag = await cursor.next()
             tagNav(res, tag.tag, tag.count, false)

@@ -9,4 +9,5 @@ dependency-reduced-pom.xml
 buildNumber.properties
 *.iml
 idea/
-
+.idea/
+node_modules/

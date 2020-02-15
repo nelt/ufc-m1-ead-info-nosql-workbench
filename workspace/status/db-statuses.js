@@ -8,6 +8,7 @@ exports.handleRequest = async function(req, res) {
     await cassandraStatus(res);
 
     pageEnd(res);
+    res.end()
 }
 
 async function mongodbStatus(res) {

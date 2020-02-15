@@ -1,9 +1,8 @@
 exports.run = async function (args) {
     const parse = require('csv-parse')
-    const stringify = require('csv-stringify')
     const fs = require('fs')
-
     const MongoClient = require('mongodb').MongoClient
+
     mogoClient = await MongoClient.connect('mongodb://mongo:27017', { useUnifiedTopology: true })
     const db = mogoClient.db("fifa_tweets")
 
@@ -80,7 +79,6 @@ exports.run = async function (args) {
             }
         })
         .on('end', function () {
-            mogoClient.close()
             const elapsed = (Date.now() - start) / 1000;
             console.info("Read " + readCount + " rows data-set in " + elapsed + "s.")
         })

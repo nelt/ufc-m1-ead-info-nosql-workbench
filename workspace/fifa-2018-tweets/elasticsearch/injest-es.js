@@ -2,14 +2,11 @@
 
 exports.run = async function (args) {
     const parse = require('csv-parse')
-    const stringify = require('csv-stringify')
     const fs = require('fs')
-
-
     const {Client} = require('@elastic/elasticsearch')
+
     const esClient = new Client({node: 'http://elasticsearch:9200'})
     await manageIndex(esClient);
-
 
     const start = Date.now();
     let readCount = 0;
@@ -73,7 +70,6 @@ exports.run = async function (args) {
             }
         })
         .on('end', function () {
-            //esClient.close()
             const elapsed = (Date.now() - start) / 1000;
             console.info("Read " + readCount + " rows data-set in " + elapsed + "s.")
         })
