@@ -158,8 +158,6 @@ function tagsFacets(res, tags, filters) {
     res.write('</p>')
 }
 
-
-
 function baseQueryString(filters) {
     let baseQuery = '?';
     if(filters.tag) {

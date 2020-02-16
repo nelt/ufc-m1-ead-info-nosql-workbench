@@ -11,3 +11,4 @@ buildNumber.properties
 idea/
 .idea/
 node_modules/
+workspace/fifa-2018-tweets/data-set/FIFA.csv

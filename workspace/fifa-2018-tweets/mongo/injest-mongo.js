@@ -81,6 +81,7 @@ exports.run = async function (args) {
         .on('end', function () {
             const elapsed = (Date.now() - start) / 1000;
             console.info("Read " + readCount + " rows data-set in " + elapsed + "s.")
+            mogoClient.close()
         })
 
 }

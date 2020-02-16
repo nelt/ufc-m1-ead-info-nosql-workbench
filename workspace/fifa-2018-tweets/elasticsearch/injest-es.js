@@ -1,5 +1,3 @@
-
-
 exports.run = async function (args) {
     const parse = require('csv-parse')
     const fs = require('fs')
