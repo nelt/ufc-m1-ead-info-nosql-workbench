@@ -2,7 +2,7 @@ version: "3.7"
 services:
 
   workbench:
-    image: codingmatters/nosql-workbench:1.0.0-dev
+    image: codingmatters/nosql-workbench:1.0.0
     volumes:
       - "./workspace:/usr/src/app/workspace"
     ports:
