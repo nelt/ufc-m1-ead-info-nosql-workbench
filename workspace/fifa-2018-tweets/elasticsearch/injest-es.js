@@ -4,6 +4,10 @@ exports.run = async function (args) {
     const {Client} = require('@elastic/elasticsearch')
 
     const esClient = new Client({node: 'http://elasticsearch:9200'})
+
+    /*
+    Création de l'index et de son mapping. Fonction en fin de fichier
+     */
     await manageIndex(esClient);
 
     const start = Date.now();
@@ -17,6 +21,11 @@ exports.run = async function (args) {
         console.info("will read all records from FIFA.csv")
     }
 
+    /*
+    Ouverture d'un flux pour lire le fichier avec la librairie fs.
+    Le flux est ensuite passé (methode pipe) à la librairie csv-parse qui implémente un mécanisme de lecture asynchrone
+    du fichier.
+     */
     let stream = fs.createReadStream('./workspace/fifa-2018-tweets/data-set/FIFA.csv');
     await stream
         .pipe(parse({
@@ -25,11 +34,21 @@ exports.run = async function (args) {
             columns: true
         }))
         .on('readable', async function(){
+            /*
+            Cette fonction est appelée lors que des lignes du fchier CSV sont prètes à être traitées
+             */
             let row
             let lapStart = Date.now()
             while (row = this.read()) {
                 let tags = row.Hashtags ? row.Hashtags.split(',') : [];
 
+                /*
+                Insertion de d'un tweet :
+                    - la variable row contient une ligne du fichier CSV
+                    - on indexe le tweet dans l'index "tweets" en utilisant row.ID comme identifiant, de cette manière
+                      la première passe du script créera le document dans l'index, une autre passe entraînera sa mise à
+                      jour
+                 */
                 try {
                     await esClient.index({
                         index: 'tweets',
@@ -75,15 +94,31 @@ exports.run = async function (args) {
 }
 
 async function manageIndex(esClient) {
+    /*
+    On exécute une première requête pour savoir si l'index existe déjà
+     */
     const existsResp = await esClient.indices.exists({index: 'tweets'})
 
+    /*
+    Si l'index n'existe pas, la requête ne renvoie pas de body (on pourrait tester le statut HTTP qui est à 404 dans ce cas)
+     */
     if (!existsResp.body) {
+        /*
+        Si l'index n'existe pas, on le crée
+         */
         await esClient.indices.create({index: 'tweets'})
         console.log("created tweets index")
     } else {
         console.log("tweets index exists")
     }
     try {
+        /*
+        Ensuite on affecte à l'index son mapping.
+        On défnit le type de deux champs :
+        - le champ date est indexé en tant que date en parsant son contenu à partir des trois expression fournies
+        - le champ hashtags contient des mots clés, celà permettrat de les aggréger pour connaître le nombre de documents les contenant
+        Le type des autres champs sera déterminé par le moteur. Le plus souvent, il s'agira d'une indexation textuelle.
+         */
         await esClient.indices.putMapping({
             index: 'tweets',
             body: {
@@ -102,6 +137,9 @@ async function manageIndex(esClient) {
         console.error("error managing tweet index", e)
     }
 
+    /*
+    Ce code commenté permet d'afficher le mapping de l'index
+     */
     // try {
     //     mapping = await esClient.indices.getMapping({index: 'tweets'})
     //     console.log("mapping ", mapping.body.tweets.mappings)
