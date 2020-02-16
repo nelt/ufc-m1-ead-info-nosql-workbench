@@ -2,26 +2,40 @@
 exports.handleRequest = async function (req, res) {
     res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
 
-    var url = require('url');
-    const parsedQuery = url.parse(req.url, true);
-
+    /*
+    Connexion à Elasticsearch
+     */
     const {Client} = require('@elastic/elasticsearch')
     const esClient = new Client({node: 'http://elasticsearch:9200'})
 
-    console.info('path : ' + parsedQuery.pathname)
+    /*
+    On parse l'url de la requête avec la librairie "url"
+     */
+    var url = require('url');
+    const parsedQuery = url.parse(req.url, true);
 
+    /*
+    Puis on construit un objet filters qui contient les paramètres de la requête définissant les critère de la requête
+    et de pagination
+     */
     const pageNumber = parsedQuery.query.page ? parseInt(parsedQuery.query.page) : 0
-
     const filters = {
         pageSize: 30,
         pageNumber: pageNumber,
         tag: parsedQuery.query.tag,
         fulltext: parsedQuery.query.fulltext
     }
+    /*
+    Elasticsearch ne permet pas une pagination simple comme MongoDB. Dès que l'index est un peu volumineux, on doit
+    utiliser le mécnisme de search_after. Ce mécanisme est décrit dans l'étude de cas.
+     */
     if(parsedQuery.query.search_after) {
         filters.search_after = JSON.parse(parsedQuery.query.search_after)
     }
     if(parsedQuery.query.tagFacets) {
+        /*
+        La version Elasticsearch permet de filtrer de façon itérative sur les tag (on parle de navigation par facette)
+         */
         if(Array.isArray(parsedQuery.query.tagFacets)) {
             filters.tagFacets = parsedQuery.query.tagFacets
         } else {
@@ -31,92 +45,27 @@ exports.handleRequest = async function (req, res) {
 
     pageStart(res, "FIFA Tweets : Elasticsearch", `Tweets${filters.tag ? ' - filtrés par hashtag : ' + filters.tag : ''}${filters.fulltext ? ' - avec critère fulltext : ' + filters.fulltext : ''}`);
 
-
+    /*
+    Requête et affichage des dix tags les plus utilisés
+     */
     await tags(esClient, res, parsedQuery);
+    /*
+    Requête et affichage des tweets + des facettes par tags
+     */
     await tweets(esClient, res, filters);
 
     pageEnd(res)
     res.end()
 }
 
-async function tweets(esClient, res, filters) {
-    try {
-
-// https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
-        const q = {bool: {must: []}}
-
-        if(filters.tag) {
-            q.bool.must.push({match: {hashtags: filters.tag}})
-        }
-        if(filters.tagFacets) {
-            filters.tagFacets.forEach(facet => q.bool.must.push({match: {hashtags: facet}}))
-
-        }
-        if(filters.fulltext) {
-            q.bool.must.push({match: {tweet: filters.fulltext}})
-        }
-        if(q.bool.must.length == 0) {
-            q.bool.must.push({match_all: {}})
-        }
-
-        console.log("query : ", q)
-        const countResponse = await esClient.count({
-            index: 'tweets',
-            body: {
-                query: q
-            }
-        })
-        const search = {
-            index: 'tweets',
-            sort: ['date', '_id'],
-            size: filters.pageSize,
-            body: {
-                query: q,
-                aggs: {
-                    tags: {terms: {field: 'hashtags'}}
-                }
-            }
-        }
-
-        //https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-body.html#request-body-search-search-after
-        if(filters.search_after) {
-            search.body.search_after = filters.search_after
-        }
-        const page = await esClient.search(search)
-
-        filters.total = countResponse.body.count
-        filters.start = filters.pageNumber * filters.pageSize + 1
-        filters.end = Math.min(filters.start + filters.pageSize - 1, filters.total)
-        if(filters.search_after) {
-            filters.previous_search_after = encodeURIComponent(JSON.stringify(filters.search_after))
-            filters.search_after = undefined
-        }
-        if(page.body.hits.hits.length > 0) {
-            filters.search_after = encodeURIComponent(JSON.stringify(page.body.hits.hits[page.body.hits.hits.length - 1].sort))
-        }
-
-        console.info("FILTERS :: ", filters)
-        console.info("QUERY   :: ", q)
-
-        tweetContainerStart(res)
-        tweetNavigation(res, filters)
-        tagsFacets(res, page.body.aggregations.tags, filters)
-
-        tableStart(res, "Date", "Auteur", "Tweet", "Hashtags")
-        page.body.hits.hits.forEach(hit => {
-            tweet = hit._source;
-            tableRow(res, tweet.date, tweet.authorName, tweet.tweet, tweet.hashtags.join(', '))
-        })
-
-        tableEnd(res)
-        tweetContainerEnd(res)
-    } catch (e) {
-        console.error("error :: " + e)
-        console.error(e.stackTrace)
-    }
-}
-
+/*
+Requête et affichage des dix tags les plus utilisés
+ */
 async function tags(esClient, res, parsedQuery) {
+    /*
+    On réalise une requête sur tous les documents de l'index tweet sans leur appliquer de filtres. On ne s'intéresse en
+    fait qu'à l'aggrégation des termes du champs hashtags. Par défaut l'aggrégation renvoie les dix premières valeurs
+     */
     const page = await esClient.search({
         index: 'tweets',
         body: {
@@ -130,11 +79,139 @@ async function tags(esClient, res, parsedQuery) {
     tagNav(res, 'tous', null, false)
 
     page.body.aggregations.tags.buckets.forEach(bucket => {
+        /*
+        On itère sur les valeurs de l'aggrégation.
+        Chaque valeur est un objet bucket dont les deux champs nous intéressant sont :
+        - bucket.key : la valeur du tag
+        - bucket.doc_count : le nombre document de l'index contenant ce tag.
+
+        Si on avait spécifié un filtre à la requête, les conteurs auraient contenu le nombre de document correspondant
+        au filtre et contenant le tag.
+         */
         tagNav(res, bucket.key, bucket.doc_count, false)
     })
     tagBarEnd(res)
 }
 
+async function tweets(esClient, res, filters) {
+    try {
+
+// https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
+        /*
+        On définit dans q le filtre sur les documents de l'index "tweets"
+        Ici, on définit un filtre bolléen avec une liste vide de critère additif (must: [])
+         */
+        const q = {bool: {must: []}}
+
+        if(filters.tag) {
+            /*
+            Si le critère tag est défini, on ajoute un critère à l'expression booléenne : le champ hashtags doit
+            contenir la valeur filters.tag
+             */
+            q.bool.must.push({match: {hashtags: filters.tag}})
+        }
+        if(filters.tagFacets) {
+            /*
+            Si des facettes sont définies, c'est-à-dire que l'utilisateur a sélectionner en plus le la recherche des
+            tags dans la liste sous la barre de recherche, on ajoute un critère supplémentaire pour chaque tag
+             */
+            filters.tagFacets.forEach(facet => q.bool.must.push({match: {hashtags: facet}}))
+
+        }
+        if(filters.fulltext) {
+            /*
+            Si le critère fulltext est renseigné (i.e., on a tapé du texte dans le champ de recherche), on ajoute un critère
+            sur le champ tweet.
+             */
+            q.bool.must.push({match: {tweet: filters.fulltext}})
+        }
+        if(q.bool.must.length == 0) {
+            /*
+            Enfi, il se peut qu'aucun critère n'ait été spécifié. Dans ce cas, la liste de critère must est vide ce qui
+            va faire planter la requête à Elasicsearch. On ajoute donc un critère qui match tous les documents de l'index.
+             */
+            q.bool.must.push({match_all: {}})
+        }
+
+        console.log("query : ", q)
+        /*
+        On a un compteur de résultats total sur le résultat d'un filtre, mais, ce compteur est approximatif.
+        Elasticsearch propose un point d'entrée spécifique pour récupérer le nombre exacte de documents correspondant à une
+        requête, c'est ce qu'on utilise ici.
+        En fait, le comptage est une fonctionnalité très gourmande en ressource. Elle est découragée...
+         */
+        const countResponse = await esClient.count({
+            index: 'tweets',
+            body: {
+                query: q
+            }
+        })
+        /*
+        On exécute la requête sur l'indexe "tweets".
+        Elle est ordonnées par :
+        - date    : parce que c'est ce qu'on veut
+        - par _id : pour pouvoir utiliser la fonctionalité search_after, cf. cas d'usage
+
+        On définit enfin l'aggrégation des termes du champs "hashtags". Celà nous permettra d'avoir les les facettes
+        correspondant au filtre sur ce champ.
+         */
+        const search = {
+            index: 'tweets',
+            sort: ['date', '_id'],
+            size: filters.pageSize,
+            body: {
+                query: q,
+                aggs: {
+                    tags: {terms: {field: 'hashtags'}}
+                }
+            }
+        }
+
+        /*
+        S'il s'agit d'une requête pour la page suivante, on ajoute le champ search_after
+         */
+        if(filters.search_after) {
+            search.body.search_after = filters.search_after
+        }
+        const page = await esClient.search(search)
+
+        filters.total = countResponse.body.count
+        filters.start = filters.pageNumber * filters.pageSize + 1
+        filters.end = Math.min(filters.start + filters.pageSize - 1, filters.total)
+        if(filters.search_after) {
+            filters.search_after = undefined
+        }
+        if(page.body.hits.hits.length > 0) {
+            filters.search_after = encodeURIComponent(JSON.stringify(page.body.hits.hits[page.body.hits.hits.length - 1].sort))
+        }
+
+        tweetContainerStart(res)
+        tweetNavigation(res, filters)
+        /*
+        Affichage des facettes sur le champ hashtags
+         */
+        tagsFacets(res, page.body.aggregations.tags, filters)
+
+        tableStart(res, "Date", "Auteur", "Tweet", "Hashtags")
+        page.body.hits.hits.forEach(hit => {
+            /*
+            On itère sur les résultats de la requête et on affiche les tweets
+             */
+            tweet = hit._source;
+            tableRow(res, tweet.date, tweet.authorName, tweet.tweet, tweet.hashtags.join(', '))
+        })
+
+        tableEnd(res)
+        tweetContainerEnd(res)
+    } catch (e) {
+        console.error("error :: " + e)
+        console.error(e.stackTrace)
+    }
+}
+
+/*
+Affichage des facettes sur le champ hashtags
+ */
 function tagsFacets(res, tags, filters) {
     let baseQuery = baseQueryString(filters)
     console.log("baseQuery=" + baseQuery)
@@ -174,7 +251,8 @@ function baseQueryString(filters) {
 
 /*
  *
- * Formatting
+ * Formattage : les fonction ci-dessous sont des fonctions d'affichage, elle ne sont pas à roprement parler intéressante
+ * pour le cours, mais, si vous souhaitez comprendre le fonctionnement du script... allez-y !
  *
  */
 
@@ -239,7 +317,6 @@ async function tweetNavigation(res, filters) {
         res.write(
         `
                 <li class="page-item"><a class="page-link" href="${baseReq}"><span aria-hidden="true">&lt;&lt;</span></a></li>
-                <li class="page-item"><a class="page-link" href="${baseReq}page=${filters.pageNumber - 1}&search_after=${filters.previous_search_after}">&lt;</a></li>
         `)
     }
     res.write(

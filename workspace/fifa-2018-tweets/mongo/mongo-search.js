@@ -2,17 +2,25 @@
 exports.handleRequest = async function (req, res) {
     res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'});
 
-    var url = require('url');
-    const parsedQuery = url.parse(req.url, true);
-
+    /*
+    connexion à mongo, récupération de la base de données fifa_tweets
+     */
     const MongoClient = require('mongodb').MongoClient
     mogoClient = await MongoClient.connect('mongodb://mongo:27017', { useUnifiedTopology: true })
     const db = mogoClient.db("fifa_tweets")
 
+    /*
+    On parse l'url de la requête avec la librairie "url"
+     */
+    var url = require('url');
+    const parsedQuery = url.parse(req.url, true);
     console.info('path : ' + parsedQuery.pathname)
 
+    /*
+    Puis on construit un objet filters qui contient les paramètres de la requête définissant les critère de la requête
+    et de pagination
+     */
     const pageNumber = parsedQuery.query.page ? parseInt(parsedQuery.query.page) : 0
-
     const filters = {
         pageSize: 30,
         pageNumber: pageNumber,
@@ -20,62 +28,40 @@ exports.handleRequest = async function (req, res) {
         fulltext: parsedQuery.query.fulltext
     }
 
+    /*
+    fonction de formattage du début de fichier HTML, vous pouvez passer aux fonctions intéressantes : tags et tweets
+     */
     pageStart(res, "FIFA Tweets : MongoDB", `Tweets${filters.tag ? ' - filtrés par hashtag : ' + filters.tag : ''}${filters.fulltext ? ' - avec critère fulltext : ' + filters.fulltext : ''}`);
 
+    /*
+    requête et affichage des compteurs de tags
+     */
     await tags(db, res, parsedQuery);
+
+    /*
+    requête et affichage des tweets correspondant au filtre courant
+     */
     await tweets(db, res, filters);
 
     pageEnd(res)
     res.end()
 }
 
-async function tweets(db, res, filters) {
-    try {
-        const tweets = db.collection('tweets')
-
-        q = {}
-        if(filters.tag) {
-            q['hashtags'] = {$eq: filters.tag}
-        }
-
-        // https://docs.mongodb.com/manual/text-search/
-        if(filters.fulltext) {
-            q['$text'] = {$search: filters.fulltext}
-        }
-
-        const cursor = tweets
-            .find(q)
-            .sort({date: 1}).limit(filters.pageSize).skip(filters.pageNumber * 30)
-
-        filters.total = await cursor.count()
-        filters.lastPage = Math.floor(filters.total / filters.pageSize)
-        filters.start = filters.pageNumber * filters.pageSize + 1
-        filters.end = Math.min(filters.start + filters.pageSize - 1, filters.total)
-
-        console.info("FILTERS :: ", filters)
-        console.info("QUERY   :: ", q)
-
-        tweetContainerStart(res)
-        tweetNavigation(res, filters)
-
-        tableStart(res, "Date", "Auteur", "Tweet", "Hashtags")
-        while (await cursor.hasNext()) {
-            const tweet = await cursor.next()
-            tableRow(res, tweet.date, tweet.authorName, tweet.tweet, tweet.hashtags.join(', '))
-        }
-        tableEnd(res)
-        tweetContainerEnd(res)
-    } catch (e) {
-        console.error("error :: " + e)
-        console.error(e.stackTrace)
-    }
-}
-
+/*
+requête et affichage des compteurs de tags
+ */
 async function tags(db, res, parsedQuery) {
     tagBarStart(res)
     tagNav(res, 'tous', null, false)
 
     try {
+        /*
+        requête sur la collection "hashtags"
+        - on crée un curseur : hashtags.find({}), aucun filtre n'est appliquée à la recherche
+        - on ordonne les résultats : sort({count: -1}) signifie qu'on ordonne sur le champ count du plus grand vers le plus
+        petit
+        - on limite le nombre de résultats : limit(10)
+         */
         const hashtags = db.collection('hashtags')
         const cursor = hashtags.find({}).sort({count: -1}).limit(10)
         while (await cursor.hasNext()) {
@@ -90,8 +76,75 @@ async function tags(db, res, parsedQuery) {
 }
 
 /*
+requête et affichage des tweets correspondant au filtre courant
+ */
+async function tweets(db, res, filters) {
+    try {
+        /*
+        On récupère un objet représentant la collection "tweets"
+         */
+        const tweets = db.collection('tweets')
+
+        /*
+        On va construire dan sl'objet q le filtre de la requête à partir duquel on construira un curseur.
+         */
+        q = {}
+        if(filters.tag) {
+            /*
+            Si le paramètre tag est renseigné (i.e., on a cliqué sur un des liens dans la colonne de gauche), on
+            définit un filtre sur le champ hashtags.
+            Pour celà, on crée dans q la propriété "hastags" et on utilise l'opérateur $eq pour spécifier qu'on veut
+            les document dont le champ hastags contient la valeur filters.tag.
+             */
+            q['hashtags'] = {$eq: filters.tag}
+        }
+
+        // https://docs.mongodb.com/manual/text-search/
+        if(filters.fulltext) {
+            /*
+            De la même façon, si le critère fulltext est renseigné (i.e., on a tapé du texte dans le champ de recherche)
+            on utilise l'opérateur $search pour ajouter un critère de recherche plein text sur le pseudo champ $text qui
+            représente l'aggrégation de tous les champs indexés en type text sur la collection.
+            */
+            q['$text'] = {$search: filters.fulltext}
+        }
+
+        /*
+        On crée le curseur en spécifiant le filtre q ainsi que les paramètres de pagination en utilisant les méthodes
+        limit et skip
+         */
+        const cursor = tweets
+            .find(q)
+            .sort({date: 1}).limit(filters.pageSize).skip(filters.pageNumber * 30)
+
+        filters.total = await cursor.count()
+        filters.lastPage = Math.floor(filters.total / filters.pageSize)
+        filters.start = filters.pageNumber * filters.pageSize + 1
+        filters.end = Math.min(filters.start + filters.pageSize - 1, filters.total)
+
+        tweetContainerStart(res)
+        tweetNavigation(res, filters)
+
+        tableStart(res, "Date", "Auteur", "Tweet", "Hashtags")
+        while (await cursor.hasNext()) {
+            /*
+            On itère sur le contenu du curseur pour afficher les tweets
+             */
+            const tweet = await cursor.next()
+            tableRow(res, tweet.date, tweet.authorName, tweet.tweet, tweet.hashtags.join(', '))
+        }
+        tableEnd(res)
+        tweetContainerEnd(res)
+    } catch (e) {
+        console.error("error :: " + e)
+        console.error(e.stackTrace)
+    }
+}
+
+/*
  *
- * Formatting
+ * Formattage : les fonction ci-dessous sont des fonctions d'affichage, elle ne sont pas à roprement parler intéressante
+ * pour le cours, mais, si vous souhaitez comprendre le fonctionnement du script... allez-y !
  *
  */
 
