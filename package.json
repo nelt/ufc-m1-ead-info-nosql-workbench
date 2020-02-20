@@ -6,6 +6,7 @@
     "mongodb": "3.5.2",
     "@elastic/elasticsearch": "7.5.0",
     "cassandra-driver": "4.4.0",
+    "aerospike": "3.14.1",
     "csv": "5.3.1"
   },
   "keywords": [],

@@ -12,3 +12,4 @@ idea/
 .idea/
 node_modules/
 workspace/fifa-2018-tweets/data-set/FIFA.csv
+workspace/weather-in-australia/data-set/weatherAUS.csv
