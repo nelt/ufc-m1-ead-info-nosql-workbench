@@ -3,53 +3,76 @@ exports.handleRequest = async function (req, res) {
     var url = require('url');
     const parsedQuery = url.parse(req.url, true);
 
-    const filters = {
-        city: parsedQuery.query.city ? parsedQuery.query.city : 'Albury',
-        year: parsedQuery.query.year ? parsedQuery.query.year : "2008"
-    }
-
     const redis = require("redis")
     const client = redis.createClient({host: "redis"})
 
-    const bucket = `${filters.city}-${filters.year}`
+    /*
+    On calcule la valeur courante du filtre depuis la requête.
+    Par défaut, on prend Sydney en 2017
+     */
+    const queryFilter = parsedQuery.query.filter ? JSON.parse(decodeURIComponent(parsedQuery.query.filter)) : undefined;
+    console.log("query filter: " , queryFilter)
+    const filters = {
+        city: queryFilter ? queryFilter.city : 'Sydney',
+        year: queryFilter ? queryFilter.year : "2017"
+    }
 
+    /*
+    On commence par récupérer la liste des valeurs de filtre possible.
+    La commande smembers permet de récupérer toutes les valeurs d'un Set
+     */
+    client.smembers(["filter_range"], function (error, filterRange) {
+        try {
+            filterRange = filterRange.map(json => JSON.parse(json))
+            filterRange.sort((a, b) => {
+                if (a.city == b.city) {
+                    return a.year.localeCompare(b.year)
+                } else {
+                    return a.city.localeCompare(b.city)
+                }
+            })
+        } catch (e) {
+            console.error("error parsing filte ranges", e)
+            filterRange = []
+        }
+        /*
+        Le bucket contenant les valeurs est déterminer par la valeur du filtre
+        La commande zrange permet de récupérer un range de valeurs d'un SortedSet.
+        Ici, on demande le range [0, -1], ce qui correspond à récupérer toutes les valeurs. On aurait pus limiter le nombre
+        de valeurs. Par exemple, [0, 9] aurait permis de récupérer les 10 premières valeurs
+         */
+        const bucket = `${filters.city}-${filters.year}`
+        client.zrange([bucket, 0, -1], function (error, result) {
 
-    client.zrange(["year_labels", 0, -1], function (error, years) {
-        client.smembers(["city_labels"], function (error, cities) {
-            client.zrange([bucket, 0, -1], function (error, result) {
+            /*
+            Les valeurs stockées sont des chaîne de caractère encodant en JSON les échantillons.
+            On le désérialise et on transforme le timestamp at en Date
+             */
+            const data = result.map(json => {
+                const datum = JSON.parse(json)
+                datum.at = new Date(datum.at)
+                return datum;
+            })
 
-                const data = formatData(result)
+            /*
+            Gestion de l'affichage
+             */
+            res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'})
+            page(res,
+                `Le temps en Australie : Graphes annuels`,
+                `${filters.city} en ${filters.year}`,
+                `Évolution des températures minimales, maximales et pluviométrie à ${filters.city} en ${filters.year}`,
+                data,
+                filters,
+                filterRange
+            )
 
-                res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'})
-                page(res,
-                    `Le temps en Australie : Graphes annuels`,
-                    `${filters.city} en ${filters.year}`,
-                    `Évolution des températures minimales, maximales et pluviométrie à ${filters.city} en ${filters.year}`,
-                    data,
-                    filters,
-                    cities,
-                    years
-                )
-
-                client.quit(function () {
-                    console.info("bye...")
-                    res.end()
-                })
+            client.quit(function () {
+                console.info("bye...")
+                res.end()
             })
         })
     })
-
-}
-
-function formatData(result) {
-    const data = []
-    result.forEach(json => {
-        const datum = JSON.parse(json)
-        datum.at = new Date(datum.at)
-        data.push(datum)
-    })
-
-    return data
 }
 
 
@@ -60,7 +83,7 @@ function formatData(result) {
  *
  */
 
-function page(res, title, header, resume, data, filters, cities, years) {
+function page(res, title, header, resume, data, filters, filterRange) {
 
     const formattedData = []
     data.forEach(datum => {
@@ -139,23 +162,20 @@ function page(res, title, header, resume, data, filters, cities, years) {
                     <nav class="navbar navbar-light bg-light">
 
                       <form class="form-inline" action="">
-                        <select class="form-control" name="city">
+                        <select class="form-control" name="filter">
             `)
-        cities.sort()
-        cities.forEach(city => {
-            res.write(`<option ${city === filters.city ? 'selected' : ''}>${city}</option>`)
-        })
-        res.write(`
-                        </select>
-                        <select class="form-control" name="year">
-            `)
-        years.forEach(year => {
-            res.write(`<option ${year === filters.year ? 'selected' : ''}>${year}</option>`)
+        filterRange.forEach(filter => {
+            const encodedFilter = encodeURIComponent(JSON.stringify(filter))
+            if(filter.city === filters.city && filter.year === filters.year) {
+                res.write(`<option value="${encodedFilter}" selected>${filter.city} - ${filter.year}</option>`)
+            } else {
+                res.write(`<option value="${encodedFilter}">${filter.city} - ${filter.year}</option>`)
+            }
         })
         res.write(`
                         </select>
 
-                        <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+                        <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Changer de ville / années</button>
                       </form>
 
                     </nav>

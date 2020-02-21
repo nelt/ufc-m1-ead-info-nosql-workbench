@@ -65,8 +65,11 @@ exports.run = async function (args) {
                          */
 
                         client.zadd(bucket, Date.parse(row.Date), `{"at": ${Date.parse(row.Date)}, "minTemp": ${row.MinTemp},"maxTemp": ${row.MaxTemp},"rainfall": ${row.Rainfall}}`)
-                        client.zadd("year_labels", parseFloat(year), year)
-                        client.sadd("city_labels", row.Location)
+
+                        /*
+                        On utilise bucket de type Set (sans relation d'ordre) pour dresser la liste des couple city / year
+                         */
+                        client.sadd("filter_range", `{"city":"${row.Location}","year":"${year}"}`)
                     }
                 } catch (e) {
                     console.error("error indexing document : ", row)
