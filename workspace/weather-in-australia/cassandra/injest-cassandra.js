@@ -3,7 +3,6 @@ exports.run = async function (args) {
     const fs = require('fs')
 
     const cassandra = require('cassandra-driver');
-
     const client = new cassandra.Client({
         contactPoints: ['cassandra'],
         localDataCenter: 'datacenter1'
