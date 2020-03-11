@@ -15,22 +15,22 @@ exports.handleRequest = async function (req, res) {
 
 function userTimelineData() {
     return [
-        ['Toto', '1231', new Date(1789, 3, 30)],
-        ['Toto', '123', new Date(1795, 3, 30)],
-        ['Tutu', '456', new Date(1837, 2, 4)],
-        ['Titi', '7891',  new Date(1822, 2, 4)],
-        ['Titi', '7892',  new Date(1818, 2, 4)],
-        ['Tutu', '7893',  new Date(1801, 2, 4)]
+        ['Toto', '1231', new Date(2018, 6, 30, 10, 12)],
+        ['Toto', '123', new Date(2018, 6, 30, 11, 22)],
+        ['Tutu', '456', new Date(2018, 6, 4, 15, 3)],
+        ['Titi', '7891',  new Date(2018, 6, 5, 16, 30)],
+        ['Titi', '7892',  new Date(2018, 6, 4, 4, 22)],
+        ['Tutu', '7893',  new Date(2018, 6, 18, 8, 9)]
     ]
 }
 
 function htagTimelineData() {
     return [
-        ['Tag1', '101112', new Date(1797, 2, 4)],
-        ['Tag2', '131415', new Date(1801, 2, 4)],
-        ['Tag1', '1617181', new Date(1830, 2, 4)],
-        ['Tag3', '16171812', new Date(1826, 2, 4)],
-        ['Tag1', '16171813', new Date(1742, 2, 4)]
+        ['Tag1', '101112', new Date(2018, 6, 24)],
+        ['Tag2', '131415', new Date(2018, 6, 4)],
+        ['Tag1', '1617181', new Date(2018, 6, 8)],
+        ['Tag3', '16171812', new Date(2018, 6, 12)],
+        ['Tag1', '16171813', new Date(2018, 6, 19)]
     ]
 }
 
@@ -93,26 +93,28 @@ function page(res, userTimelineData, htagTimelineData, selectedTweet) {
       </head>
       <body>
         <div class="container">
-            <div class="row">
-                <h1>User Timeline</h1>
-                <div id="user-timeline" style="height: 180px;"></div>
-            </div>
-            <div class="row">
-                <h1>Tag Timeline</h1>
-                <div id="htag-timeline" style="height: 180px;"></div>
-            </div>
-            <div class="row">
+            
     `)
 
     if(selectedTweet) {
         res.write(`
+            <div class="row">
                 <h2>${selectedTweet.username} <small class="text-muted">(${selectedTweet.tweetid})</small></h2>
                 <p><small class="text-muted">${selectedTweet.createdAt.toUTCString()}</small></p>
-                <p>${selectedTweet.text}</p>
+                <p>${selectedTweet.text}</p> 
+            </div>
         `)
     }
 
-    res.write(`     
+    res.write(`    
+    
+            <div class="row">
+                <h1>User Timeline</h1>
+                <div id="user-timeline" style="height: 360px;"></div>
+            </div>
+            <div class="row">
+                <h1>Tag Timeline</h1>
+                <div id="htag-timeline" style="height: 360px;"></div>
             </div>
         </div>
       </body>
@@ -125,7 +127,7 @@ function formatTimelineData(userTimelineData) {
     userTimelineData.forEach(datum => {
         try {
             const end = new Date(datum[2].getTime());
-            end.setFullYear(datum[2].getFullYear() + 3)
+            end.setHours(datum[2].getHours() + 6)
             formattedUserTimelineData.push(`['${datum[0]}', '${datum[1]}', new Date(${datum[2].getTime()}), new Date(${end.getTime()})]`)
         } catch (e) {
             console.error("failed formatting datum : ", datum, e)
