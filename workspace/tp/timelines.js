@@ -14,6 +14,11 @@ exports.handleRequest = async function (req, res) {
 }
 
 async function userTimelineData(client) {
+    /*
+    Remplacez par le résultat d'une requête synchrone :
+    const result = await client.execute("SELECT ... WHERE a = ?", [a], {prepare: true})
+     */
+
     return [
         ['ffieqa', '1012847289696600064', new Date(Date.parse('2018-06-29T23:56:26.000Z'))],
         ['?? Ótima Geração Belga  ??', '1012847293324816385', new Date(Date.parse('2018-06-29T23:56:27.000Z'))],
@@ -26,6 +31,11 @@ async function userTimelineData(client) {
 }
 
 async function htagTimelineData(client) {
+    /*
+    Remplacez par le résultat d'une requête synchrone :
+    const result = await client.execute("SELECT ... WHERE a = ?", [a], {prepare: true})
+     */
+
     return [ [ 'COLENG', '1012847291357515777', new Date(Date.parse('2018-06-29T23:56:26.000Z'))],
         [ 'WorldCup', '1012847293324816385', new Date(Date.parse('2018-06-29T23:56:27.000Z'))],
         [ 'FIFAStadiumDJ', '1012847296860573697', new Date(Date.parse('2018-06-29T23:56:28.000Z'))],
@@ -39,6 +49,11 @@ async function htagTimelineData(client) {
 
 async function selectedTweet(id, client) {
     if(id) {
+        /*
+        Remplacez par le résultat d'une requête synchrone :
+        const result = await client.execute("SELECT ... WHERE a = ?", [a], {prepare: true})
+         */
+
         return {
             username: 'Dwi Syafitri Irfan',
             tweetid: '1012847291357515777',
