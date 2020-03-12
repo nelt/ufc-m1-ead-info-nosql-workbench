@@ -150,11 +150,12 @@ function page(res, userTimelineData, htagTimelineData, selectedTweet) {
 
     if(selectedTweet) {
         res.write(`
-            <div class="row">
+            <div class="row ">
                 <h1>Tweet s&eacute;lectionn&eacute; :</h1>
                 <h2>${selectedTweet.username} <small class="text-muted">(${selectedTweet.tweetid})</small></h2>
                 <p><small class="text-muted">${selectedTweet.createdAt.toUTCString()}</small></p>
                 <p>${selectedTweet.text}</p>
+                <hr/>
             </div>
         `)
     }
@@ -162,12 +163,12 @@ function page(res, userTimelineData, htagTimelineData, selectedTweet) {
     res.write(`    
     
             <div class="row">
-                <h1>User Timeline</h1>
-                <div id="user-timeline" style="height: 360px;"></div>
+                <h1>Tag Timeline</h1>
+                <div id="htag-timeline" style="height: 270px;"></div>
             </div>
             <div class="row">
-                <h1>Tag Timeline</h1>
-                <div id="htag-timeline" style="height: 360px;"></div>
+                <h1>User Timeline</h1>
+                <div id="user-timeline" style="height: 360px;"></div>
             </div>
         </div>
       </body>
