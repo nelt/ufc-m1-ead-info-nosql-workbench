@@ -14,80 +14,37 @@ exports.handleRequest = async function (req, res) {
 }
 
 async function userTimelineData(client) {
-    try {
-        const results = await client.execute(
-            'SELECT * FROM ufcead.timelines WHERE type = \'user\' ORDER BY createdat DESC LIMIT 25',
-        )
-        const timeline = []
-        results.rows.forEach(row => {
-            timeline.push([row.key, row.tweetid, row.createdat])
-        })
-        return timeline
-    } catch (e) {
-        console.error("failed querying user timeline : ", e)
-    }
-
-    // return [
-    //     ['Toto', '1231', new Date(2018, 6, 30, 10, 12)],
-    //     ['Toto', '123', new Date(2018, 6, 30, 11, 22)],
-    //     ['Tutu', '456', new Date(2018, 6, 4, 15, 3)],
-    //     ['Titi', '7891', new Date(2018, 6, 5, 16, 30)],
-    //     ['Titi', '7892', new Date(2018, 6, 4, 4, 22)],
-    //     ['Tutu', '7893', new Date(2018, 6, 18, 8, 9)]
-    // ]
+    return [
+        ['ffieqa', '1012847289696600064', new Date(Date.parse('2018-06-29T23:56:26.000Z'))],
+        ['?? Ótima Geração Belga  ??', '1012847293324816385', new Date(Date.parse('2018-06-29T23:56:27.000Z'))],
+        ['Singularity  U Y', '1012847296860573697', new Date(Date.parse('2018-06-29T23:56:28.000Z'))],
+        ['5:55', '1012847301931536384', new Date(Date.parse('2018-06-29T23:56:29.000Z'))],
+        ['Özil', '1012847306041724928', new Date(Date.parse('2018-06-29T23:56:30.000Z')) ],
+        [ 'PoA', '1012847312346009600', new Date(Date.parse('2018-06-29T23:56:31.000Z')) ],
+        [ 'fateemahazzhr15', '1012847315185385472', new Date(Date.parse('2018-06-29T23:56:32.000Z')) ]
+    ]
 }
 
 async function htagTimelineData(client) {
-
-    try {
-        const results = await client.execute(
-            'SELECT * FROM ufcead.timelines WHERE type = \'htag\' ORDER BY createdat DESC LIMIT 25',
-        )
-        const timeline = []
-        results.rows.forEach(row => {
-            timeline.push([row.key, row.tweetid, row.createdat])
-        })
-        return timeline
-    } catch (e) {
-        console.error("failed querying user timeline : ", e)
-    }
-
-    // return [
-    //     ['Tag1', '101112', new Date(2018, 6, 24)],
-    //     ['Tag2', '131415', new Date(2018, 6, 4)],
-    //     ['Tag1', '1617181', new Date(2018, 6, 8)],
-    //     ['Tag3', '16171812', new Date(2018, 6, 12)],
-    //     ['Tag1', '16171813', new Date(2018, 6, 19)]
-    // ]
+    return [ [ 'COLENG', '1012847291357515777', new Date(Date.parse('2018-06-29T23:56:26.000Z'))],
+        [ 'WorldCup', '1012847293324816385', new Date(Date.parse('2018-06-29T23:56:27.000Z'))],
+        [ 'FIFAStadiumDJ', '1012847296860573697', new Date(Date.parse('2018-06-29T23:56:28.000Z'))],
+        [ 'worldcup', '1012847301931536384', new Date(Date.parse('2018-06-29T23:56:29.000Z'))],
+        [ 'Win', '1012847308843749377', new Date(Date.parse('2018-06-29T23:56:30.000Z'))],
+        [ 'FIFAWorldCup', '1012847312346009600', new Date(Date.parse('2018-06-29T23:56:31.000Z'))],
+        [ 'FIFAStadiumDJ', '1012847315185385472', new Date(Date.parse('2018-06-29T23:56:32.000Z'))],
+        [ 'FIFAStadiumDJ', '1012847320273162240', new Date(Date.parse('2018-06-29T23:56:33.000Z'))]
+    ]
 }
 
 async function selectedTweet(id, client) {
     if(id) {
-        try {
-            const results = await client.execute(
-                'SELECT * FROM ufcead.tweets WHERE tweetid = ?', [id], {prepare: true}
-            )
-            console.debug("tweet semection results :: ", results)
-            if(results.rows.length > 0) {
-                return {
-                    username: results.rows[0].username,
-                    tweetid: results.rows[0].tweetid,
-                    createdAt: results.rows[0].createdat,
-                    text: results.rows[0].text
-                }
-            } else {
-                return undefined
-            }
-        } catch (e) {
-            console.error("failed querying tweets : ", e)
+        return {
+            username: 'Dwi Syafitri Irfan',
+            tweetid: '1012847291357515777',
+            createdAt: new Date(Date.parse('2018-06-29T23:56:26.000Z')),
+            text: 'RT @FIFAWorldCup: So...\\r\\n\\r\\n#URUPOR ????\\r\\n#ESPRUS ????\\r\\n#FRAARG ????\\r\\n#CRODEN ????\\r\\n#BRAMEX ????\\r\\n#SWESUI ????\\r\\n#BELJPN ????\\r\\n#COLENG ?????????\\r\\n\\r\\nExci…'
         }
-
-        // return {
-        //     username: 'John Doe',
-        //     tweetid: id,
-        //     createdAt: new Date(),
-        //     text: 'Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui.'
-        // }
     } else {
         return undefined;
     }

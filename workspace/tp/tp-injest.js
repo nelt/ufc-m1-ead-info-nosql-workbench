@@ -15,27 +15,15 @@ exports.run = async function (args) {
     await client.execute("CREATE KEYSPACE IF NOT EXISTS ufcead WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }");
 
     /*
-    Création de la table principale
+    Création de vos tables ICI
      */
-    await client.execute(`
-        CREATE TABLE IF NOT EXISTS ufcead.tweets (
-            tweetid text,
-            username text,
-            text text,
-            createdat timestamp,
-            primary key (tweetid)
-        )
-    `);
 
-    await client.execute(`
-        CREATE TABLE IF NOT EXISTS ufcead.timelines (
-            type text,
-            createdat timestamp,
-            key text,
-            tweetid text,
-            primary key (type, createdat)
-        ) ;
-    `);
+
+
+
+
+
+
 
     const start = Date.now();
     let readCount = 0;
@@ -43,7 +31,7 @@ exports.run = async function (args) {
     let max = -1;
     if(args.length > 0) {
         max = parseInt(args[0])
-        console.info("will read " + max + " records from weatherAUS.csv")
+        console.info("will read " + max + " records from FIFA.csv")
     } else {
         console.info("will read all records from FIFA.csv")
     }
@@ -67,49 +55,22 @@ exports.run = async function (args) {
             let row
             let lapStart = Date.now()
             while (row = this.read()) {
-                /*
-                Insertion de d'un échantillon
-                 */
                 try {
                     /*
-                    Insertion dans la table principale
+                    Insertion de d'un échantillon ICI
                      */
-                    await client.execute(
-                        'INSERT INTO ufcead.tweets (tweetid, username, text, createdAt) VALUES (?,?,?,?)',
-                        [
-                            row.ID,
-                            row.Name,
-                            row.Orig_Tweet,
-                            Date.parse(row.Date)
-                        ],
-                        {prepare: true});
 
-                    if(row.Name && row.Name != '') {
-                        await client.execute(
-                            'INSERT INTO ufcead.timelines (type, key, tweetid, createdAt) VALUES (?,?,?,?)',
-                            [
-                                'user',
-                                row.Name,
-                                row.ID,
-                                Date.parse(row.Date)
-                            ],
-                            {prepare: true}
-                        )
-                    }
 
-                    let tags = row.Hashtags ? row.Hashtags.split(',') : [];
-                    for (var i = 0; i < tags.length; i++) {
-                        await client.execute(
-                            'INSERT INTO ufcead.timelines (type, key, tweetid, createdAt) VALUES (?,?,?,?)',
-                            [
-                                'htag',
-                                tags[i],
-                                row.ID,
-                                Date.parse(row.Date)
-                            ],
-                            {prepare: true}
-                        )
-                    }
+
+
+
+
+
+
+
+
+
+
                 } catch (e) {
                     console.error("error indexing document : ", row)
                     console.error("error was : ", e)
