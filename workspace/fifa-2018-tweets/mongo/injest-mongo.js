@@ -44,7 +44,7 @@ exports.run = async function (args) {
 
     /*
     Ouverture d'un flux pour lire le fichier avec la librairie fs.
-    Le flux est ensuite passé (methode pipe) à la librairie csv-parse qui implémente un mécanisme de lecture asynchrone
+    Le flux est ensuite passé (méthode pipe) à la librairie csv-parse qui implémente un mécanisme de lecture asynchrone
     du fichier.
      */
     let stream = fs.createReadStream('./workspace/fifa-2018-tweets/data-set/FIFA.csv');
@@ -56,7 +56,7 @@ exports.run = async function (args) {
         }))
         .on('readable', async function(){
             /*
-            Cette fonction est appelée lors que des lignes du fchier CSV sont prètes à être traitées
+            Cette fonction est appelée lorsque des lignes du fichier CSV sont prêtes à être traitées
              */
             let row
             let lapStart = Date.now()
@@ -64,7 +64,7 @@ exports.run = async function (args) {
                 let tags = row.Hashtags ? row.Hashtags.split(',') : [];
 
                 /*
-                Insertion de d'un tweet :
+                Insertion d'un tweet :
                     - la variable row contient une ligne du fichier CSV
                     - on utilise la méthode updateOne pour insérer / mettre à jour le tweet avec l'option upsert (cf. étude de cas)
                  */
@@ -90,8 +90,8 @@ exports.run = async function (args) {
                 )
                 for (var i = 0; i < tags.length; i++) {
                     /*
-                    On construit en parrallèle la collection "hashtags" qui contient les compteurs.
-                    Là aussi, on utilise l'option upsert pour insèrer / mettre à jour les compteurs.
+                    On construit en parallèle la collection "hashtags" qui contient les compteurs.
+                    Là aussi, on utilise l'option upsert pour insérer / mettre à jour les compteurs.
                     On utilise également l'opérateur $inc qui incrémente la valeur d'un champs, ici, le champ "count".
                      */
                     await hashtags.updateOne(
