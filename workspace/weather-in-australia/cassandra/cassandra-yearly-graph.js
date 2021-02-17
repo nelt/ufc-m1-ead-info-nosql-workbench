@@ -76,7 +76,7 @@ exports.handleRequest = async function (req, res) {
 
 /*
  *
- * Formattage : les fonction ci-dessous sont des fonctions d'affichage, elle ne sont pas à roprement parler intéressante
+ * Formatage : les fonctions ci-dessous sont des fonctions d'affichage, elle ne sont pas à proprement parler intéressantes
  * pour le cours, mais, si vous souhaitez comprendre le fonctionnement du script... allez-y !
  *
  */
@@ -87,7 +87,7 @@ function page(res, title, header, resume, data, filters, filterRange) {
     data.forEach(datum => {
         try {
             /*
-            On doit formatter une chaîne à partir du datum qui sera exécutée en tant que javascript par le navigateur
+            On doit formater une chaîne à partir du datum qui sera exécutée en tant que JavaScript par le navigateur
              */
             formattedData.push(`[new Date(${datum.at.getTime()}), ${datum.minTemp}, ${datum.maxTemp}, ${datum.rainfall}]`)
         } catch (e) {
