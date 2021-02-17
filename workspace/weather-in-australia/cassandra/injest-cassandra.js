@@ -46,8 +46,8 @@ exports.run = async function (args) {
     }
 
     /*
-    Ouverture d'un flux pour lire le fichier avec la librairie fs.
-    Le flux est ensuite passé (méthode pipe) à la librairie csv-parse qui implémente un mécanisme de lecture asynchrone
+    Ouverture d'un flux pour lire le fichier avec la bibliothèque fs.
+    Le flux est ensuite passé (méthode pipe) à la bibliothèque csv-parse qui implémente un mécanisme de lecture asynchrone
     du fichier.
      */
     let stream = fs.createReadStream('./workspace/weather-in-australia/data-set/weatherAUS.csv');
