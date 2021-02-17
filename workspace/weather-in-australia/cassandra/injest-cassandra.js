@@ -59,7 +59,7 @@ exports.run = async function (args) {
         }))
         .on('readable', async function(){
             /*
-            Cette fonction est appelée lorsque des lignes du fichier CSV sont prêtes à être traitées
+            Cette fonction est appelée lorsque des lignes du fichier CSV sont prêtes à être traitées.
              */
             let row
             let lapStart = Date.now()
@@ -87,8 +87,8 @@ exports.run = async function (args) {
                         ], {prepare: true});
                     }
                 } catch (e) {
-                    console.error("error indexing document : ", row)
-                    console.error("error was : ", e)
+                    console.error("error indexing document: ", row)
+                    console.error("error was: ", e)
                 }
 
                 readCount++
