@@ -36,16 +36,16 @@ exports.handleRequest = async function (req, res) {
             filterRange = []
         }
         /*
-        Le bucket contenant les valeurs est déterminer par la valeur du filtre
+        Le bucket contenant les valeurs est déterminé par la valeur du filtre
         La commande zrange permet de récupérer un range de valeurs d'un SortedSet.
-        Ici, on demande le range [0, -1], ce qui correspond à récupérer toutes les valeurs. On aurait pus limiter le nombre
+        Ici, on demande le range [0, -1], ce qui correspond à récupérer toutes les valeurs. On aurait pu limiter le nombre
         de valeurs. Par exemple, [0, 9] aurait permis de récupérer les 10 premières valeurs
          */
         const bucket = `${filters.city}-${filters.year}`
         client.zrange([bucket, 0, -1], function (error, result) {
 
             /*
-            Les valeurs stockées sont des chaîne de caractère encodant en JSON les échantillons.
+            Les valeurs stockées sont des chaînes de caractères encodant en JSON les échantillons.
             On le désérialise et on transforme le timestamp at en Date
              */
             const data = result.map(json => {
@@ -78,7 +78,7 @@ exports.handleRequest = async function (req, res) {
 
 /*
  *
- * Formattage : les fonction ci-dessous sont des fonctions d'affichage, elle ne sont pas à roprement parler intéressante
+ * Formatage : les fonctions ci-dessous sont des fonctions d'affichage, elle ne sont pas à proprement parler intéressantes
  * pour le cours, mais, si vous souhaitez comprendre le fonctionnement du script... allez-y !
  *
  */
@@ -89,7 +89,7 @@ function page(res, title, header, resume, data, filters, filterRange) {
     data.forEach(datum => {
         try {
             /*
-            On doit formatter une chaîne à partir du datum qui sera exécutée en tant que javascript par le navigateur
+            On doit formater une chaîne à partir du datum qui sera exécutée en tant que JavaScript par le navigateur
              */
             formattedData.push(`[new Date(${datum.at.getTime()}), ${datum.minTemp}, ${datum.maxTemp}, ${datum.rainfall}]`)
         } catch (e) {
