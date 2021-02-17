@@ -19,7 +19,7 @@ exports.run = async function (args) {
 
     /*
     Ouverture d'un flux pour lire le fichier avec la librairie fs.
-    Le flux est ensuite passé (methode pipe) à la librairie csv-parse qui implémente un mécanisme de lecture asynchrone
+    Le flux est ensuite passé (méthode pipe) à la librairie csv-parse qui implémente un mécanisme de lecture asynchrone
     du fichier.
      */
     let stream = fs.createReadStream('./workspace/weather-in-australia/data-set/weatherAUS.csv');
@@ -31,13 +31,13 @@ exports.run = async function (args) {
         }))
         .on('readable', async function(){
             /*
-            Cette fonction est appelée lors que des lignes du fchier CSV sont prètes à être traitées
+            Cette fonction est appelée lorsque des lignes du fichier CSV sont prêtes à être traitées
              */
             let row
             let lapStart = Date.now()
             while (row = this.read()) {
                 /*
-                Insertion de d'un échantillon
+                Insertion d'un échantillon
                  */
                 try {
                     /*
@@ -56,11 +56,11 @@ exports.run = async function (args) {
                         const year = row.Date.substring(0,4);
                         const bucket = row.Location + "-" + year
                         /*
-                        On va utiliser comme implémentation de bucket dans redis un "SortedSet", cf. Etude de cas.
-                        La commande ZADD ajoute un élément dans un sorted set avec comme ragument :
+                        On va utiliser comme implémentation de bucket dans redis un "SortedSet", cf. Étude de cas.
+                        La commande ZADD ajoute un élément dans un sorted set avec comme argument :
                         - la clé du set, ici, le nom du bucket pour avoir un set par ville / année
                         - le score de l'élément, c'est lui qui assure l'ordre dans le set, ici, on se sert du timestamp
-                        de la date de l'échantillon : il est unique et ordonne nos valeur comme nous souhaitons les afficher
+                        de la date de l'échantillon : il est unique et ordonne nos valeurs comme nous souhaitons les afficher
                         - la donnée, ici, nous encodons les données en json
                          */
 
