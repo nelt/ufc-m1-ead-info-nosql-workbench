@@ -31,7 +31,7 @@ exports.run = async function (args) {
         }))
         .on('readable', async function(){
             /*
-            Cette fonction est appelée lorsque des lignes du fichier CSV sont prêtes à être traitées
+            Cette fonction est appelée lorsque des lignes du fichier CSV sont prêtes à être traitées.
              */
             let row
             let lapStart = Date.now()
@@ -58,22 +58,22 @@ exports.run = async function (args) {
                         /*
                         On va utiliser comme implémentation de bucket dans redis un "SortedSet", cf. Étude de cas.
                         La commande ZADD ajoute un élément dans un sorted set avec comme argument :
-                        - la clé du set, ici, le nom du bucket pour avoir un set par ville / année
+                        - la clé du set, ici, le nom du bucket pour avoir un set par ville / année ;
                         - le score de l'élément, c'est lui qui assure l'ordre dans le set, ici, on se sert du timestamp
-                        de la date de l'échantillon : il est unique et ordonne nos valeurs comme nous souhaitons les afficher
-                        - la donnée, ici, nous encodons les données en json
+                        de la date de l'échantillon : il est unique et ordonne nos valeurs comme nous souhaitons les afficher ;
+                        - la donnée, ici, nous encodons les données en JSON.
                          */
 
                         client.zadd(bucket, Date.parse(row.Date), `{"at": ${Date.parse(row.Date)}, "minTemp": ${row.MinTemp},"maxTemp": ${row.MaxTemp},"rainfall": ${row.Rainfall}}`)
 
                         /*
-                        On utilise bucket de type Set (sans relation d'ordre) pour dresser la liste des couple city / year
+                        On utilise bucket de type Set (sans relation d'ordre) pour dresser la liste des couple city / year.
                          */
                         client.sadd("filter_range", `{"city":"${row.Location}","year":"${year}"}`)
                     }
                 } catch (e) {
-                    console.error("error indexing document : ", row)
-                    console.error("error was : ", e)
+                    console.error("error indexing document: ", row)
+                    console.error("error was: ", e)
                 }
 
                 readCount++
