@@ -11,7 +11,7 @@ exports.handleRequest = async function (req, res) {
 
     /*
     On calcule la valeur courante du filtre depuis la requête.
-    Par défaut, on prend Sydney en 2017
+    Par défaut, on prend Sydney en 2017.
      */
     const queryFilter = parsedQuery.query.filter ? JSON.parse(decodeURIComponent(parsedQuery.query.filter)) : undefined;
     console.log("query filter: " , queryFilter)
@@ -21,7 +21,7 @@ exports.handleRequest = async function (req, res) {
     }
 
     /*
-    On commence par récupérer la liste des valeurs de filtre possible en groupant par le couple (location, year)
+    On commence par récupérer la liste des valeurs de filtre possible en groupant par le couple (location, year).
      */
     client.execute("SELECT location, year FROM ufcead.weather_data GROUP BY location, year", [], {prepare: true}, function (error, resultSet) {
         filterRange = resultSet.rows.map(row => {
@@ -39,14 +39,14 @@ exports.handleRequest = async function (req, res) {
         })
 
         /*
-        On exécute la requête sur les données pour le couple ville / année sélectionné
+        On exécute la requête sur les données pour le couple ville / année sélectionné.
          */
         client.execute("SELECT * FROM ufcead.weather_data WHERE location = ? AND year = ?",
             [filters.city, filters.year],
             {prepare: true},
             function (error, resultSet) {
                 /*
-                Le nom des colonnes est en minuscule, on rétablit la casse
+                Le nom des colonnes est en minuscule, on rétablit la casse.
                  */
                 const data = resultSet.rows.map(row => {
                     row.minTemp = row.mintemp
@@ -55,7 +55,7 @@ exports.handleRequest = async function (req, res) {
                 })
 
                 /*
-                Gestion de l'affichage
+                Gestion de l'affichage.
                  */
                 res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'})
                 page(res,
@@ -87,7 +87,7 @@ function page(res, title, header, resume, data, filters, filterRange) {
     data.forEach(datum => {
         try {
             /*
-            On doit formater une chaîne à partir du datum qui sera exécutée en tant que JavaScript par le navigateur
+            On doit formater une chaîne à partir du datum qui sera exécutée en tant que JavaScript par le navigateur.
              */
             formattedData.push(`[new Date(${datum.at.getTime()}), ${datum.minTemp}, ${datum.maxTemp}, ${datum.rainfall}]`)
         } catch (e) {
