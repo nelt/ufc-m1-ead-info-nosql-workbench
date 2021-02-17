@@ -8,7 +8,7 @@ exports.handleRequest = async function (req, res) {
 
     /*
     On calcule la valeur courante du filtre depuis la requête.
-    Par défaut, on prend Sydney en 2017
+    Par défaut, on prend Sydney en 2017.
      */
     const queryFilter = parsedQuery.query.filter ? JSON.parse(decodeURIComponent(parsedQuery.query.filter)) : undefined;
     console.log("query filter: " , queryFilter)
@@ -19,7 +19,7 @@ exports.handleRequest = async function (req, res) {
 
     /*
     On commence par récupérer la liste des valeurs de filtre possible.
-    La commande smembers permet de récupérer toutes les valeurs d'un Set
+    La commande smembers permet de récupérer toutes les valeurs d'un Set.
      */
     client.smembers(["filter_range"], function (error, filterRange) {
         try {
@@ -36,17 +36,17 @@ exports.handleRequest = async function (req, res) {
             filterRange = []
         }
         /*
-        Le bucket contenant les valeurs est déterminé par la valeur du filtre
+        Le bucket contenant les valeurs est déterminé par la valeur du filtre.
         La commande zrange permet de récupérer un range de valeurs d'un SortedSet.
         Ici, on demande le range [0, -1], ce qui correspond à récupérer toutes les valeurs. On aurait pu limiter le nombre
-        de valeurs. Par exemple, [0, 9] aurait permis de récupérer les 10 premières valeurs
+        de valeurs. Par exemple, [0, 9] aurait permis de récupérer les 10 premières valeurs.
          */
         const bucket = `${filters.city}-${filters.year}`
         client.zrange([bucket, 0, -1], function (error, result) {
 
             /*
             Les valeurs stockées sont des chaînes de caractères encodant en JSON les échantillons.
-            On le désérialise et on transforme le timestamp at en Date
+            On le désérialise et on transforme le timestamp at en Date.
              */
             const data = result.map(json => {
                 const datum = JSON.parse(json)
@@ -55,7 +55,7 @@ exports.handleRequest = async function (req, res) {
             })
 
             /*
-            Gestion de l'affichage
+            Gestion de l'affichage.
              */
             res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'})
             page(res,
@@ -89,11 +89,11 @@ function page(res, title, header, resume, data, filters, filterRange) {
     data.forEach(datum => {
         try {
             /*
-            On doit formater une chaîne à partir du datum qui sera exécutée en tant que JavaScript par le navigateur
+            On doit formater une chaîne à partir du datum qui sera exécutée en tant que JavaScript par le navigateur.
              */
             formattedData.push(`[new Date(${datum.at.getTime()}), ${datum.minTemp}, ${datum.maxTemp}, ${datum.rainfall}]`)
         } catch (e) {
-            console.error("failed formatting datum : ", datum, e)
+            console.error("failed formatting datum: ", datum, e)
         }
 
     })
