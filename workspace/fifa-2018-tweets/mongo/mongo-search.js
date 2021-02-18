@@ -17,7 +17,7 @@ exports.handleRequest = async function (req, res) {
     console.info('path : ' + parsedQuery.pathname)
 
     /*
-    Puis on construit un objet filters qui contient les paramètres de la requête définissant les critère de la requête
+    Puis on construit un objet filters qui contient les paramètres de la requête définissant les critères de la requête
     et de pagination
      */
     const pageNumber = parsedQuery.query.page ? parseInt(parsedQuery.query.page) : 0
@@ -29,7 +29,7 @@ exports.handleRequest = async function (req, res) {
     }
 
     /*
-    fonction de formattage du début de fichier HTML, vous pouvez passer aux fonctions intéressantes : tags et tweets
+    fonction de formatage du début de fichier HTML, vous pouvez passer aux fonctions intéressantes : tags et tweets
      */
     pageStart(res, "FIFA Tweets : MongoDB", `Tweets${filters.tag ? ' - filtrés par hashtag : ' + filters.tag : ''}${filters.fulltext ? ' - avec critère fulltext : ' + filters.fulltext : ''}`);
 
@@ -57,7 +57,7 @@ async function tags(db, res, parsedQuery) {
     try {
         /*
         requête sur la collection "hashtags"
-        - on crée un curseur : hashtags.find({}), aucun filtre n'est appliquée à la recherche
+        - on crée un curseur : hashtags.find({}), aucun filtre n'est appliqué à la recherche
         - on ordonne les résultats : sort({count: -1}) signifie qu'on ordonne sur le champ count du plus grand vers le plus
         petit
         - on limite le nombre de résultats : limit(10)
@@ -76,7 +76,7 @@ async function tags(db, res, parsedQuery) {
 }
 
 /*
-requête et affichage des tweets correspondant au filtre courant
+requête et affichage des tweets correspondants au filtre courant
  */
 async function tweets(db, res, filters) {
     try {
@@ -86,14 +86,14 @@ async function tweets(db, res, filters) {
         const tweets = db.collection('tweets')
 
         /*
-        On va construire dan sl'objet q le filtre de la requête à partir duquel on construira un curseur.
+        On va construire dans l'objet q le filtre de la requête à partir duquel on construira un curseur.
          */
         q = {}
         if(filters.tag) {
             /*
             Si le paramètre tag est renseigné (i.e., on a cliqué sur un des liens dans la colonne de gauche), on
             définit un filtre sur le champ hashtags.
-            Pour celà, on crée dans q la propriété "hastags" et on utilise l'opérateur $eq pour spécifier qu'on veut
+            Pour cela, on crée dans q la propriété "hastags" et on utilise l'opérateur $eq pour spécifier qu'on veut
             les document dont le champ hastags contient la valeur filters.tag.
              */
             q['hashtags'] = {$eq: filters.tag}
@@ -103,8 +103,8 @@ async function tweets(db, res, filters) {
         if(filters.fulltext) {
             /*
             De la même façon, si le critère fulltext est renseigné (i.e., on a tapé du texte dans le champ de recherche)
-            on utilise l'opérateur $search pour ajouter un critère de recherche plein text sur le pseudo champ $text qui
-            représente l'aggrégation de tous les champs indexés en type text sur la collection.
+            on utilise l'opérateur $search pour ajouter un critère de recherche plein texte sur le pseudo champ $text qui
+            représente l'agrégation de tous les champs indexés en type text sur la collection.
             */
             q['$text'] = {$search: filters.fulltext}
         }
@@ -143,7 +143,7 @@ async function tweets(db, res, filters) {
 
 /*
  *
- * Formattage : les fonction ci-dessous sont des fonctions d'affichage, elle ne sont pas à roprement parler intéressante
+ * Formatage : les fonctions ci-dessous sont des fonctions d'affichage, elle ne sont pas à proprement parler intéressantes
  * pour le cours, mais, si vous souhaitez comprendre le fonctionnement du script... allez-y !
  *
  */

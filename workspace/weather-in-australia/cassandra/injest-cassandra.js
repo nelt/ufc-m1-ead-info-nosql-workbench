@@ -10,12 +10,12 @@ exports.run = async function (args) {
 
 
     /*
-    On créé notre keyspace s'il n'existe pas
+    On crée notre keyspace s'il n'existe pas
      */
     await client.execute("CREATE KEYSPACE IF NOT EXISTS ufcead WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 1 }");
 
     /*
-    On créé une table pour nos données. On utilise les champs du fichier csv suivant :
+    On crée une table pour nos données. On utilise les champs du fichier CSV suivant :
         Date: '2017-06-23',
         Location: 'Uluru',
         MinTemp: '5.4',
@@ -46,8 +46,8 @@ exports.run = async function (args) {
     }
 
     /*
-    Ouverture d'un flux pour lire le fichier avec la librairie fs.
-    Le flux est ensuite passé (methode pipe) à la librairie csv-parse qui implémente un mécanisme de lecture asynchrone
+    Ouverture d'un flux pour lire le fichier avec la bibliothèque fs.
+    Le flux est ensuite passé (méthode pipe) à la bibliothèque csv-parse qui implémente un mécanisme de lecture asynchrone
     du fichier.
      */
     let stream = fs.createReadStream('./workspace/weather-in-australia/data-set/weatherAUS.csv');
@@ -59,13 +59,13 @@ exports.run = async function (args) {
         }))
         .on('readable', async function(){
             /*
-            Cette fonction est appelée lors que des lignes du fchier CSV sont prètes à être traitées
+            Cette fonction est appelée lorsque des lignes du fichier CSV sont prêtes à être traitées.
              */
             let row
             let lapStart = Date.now()
             while (row = this.read()) {
                 /*
-                Insertion de d'un échantillon
+                Insertion d'un échantillon
                  */
                 try {
                     const query = 'INSERT INTO ufcead.weather_data(location, year, at, minTemp, maxTemp, rainfall) VALUES (?, ?, ?, ?, ?, ?)';
@@ -87,8 +87,8 @@ exports.run = async function (args) {
                         ], {prepare: true});
                     }
                 } catch (e) {
-                    console.error("error indexing document : ", row)
-                    console.error("error was : ", e)
+                    console.error("error indexing document: ", row)
+                    console.error("error was: ", e)
                 }
 
                 readCount++

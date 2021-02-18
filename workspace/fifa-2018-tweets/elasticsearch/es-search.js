@@ -15,7 +15,7 @@ exports.handleRequest = async function (req, res) {
     const parsedQuery = url.parse(req.url, true);
 
     /*
-    Puis on construit un objet filters qui contient les paramètres de la requête définissant les critère de la requête
+    Puis on construit un objet filters qui contient les paramètres de la requête définissant les critères de la requête
     et de pagination
      */
     const pageNumber = parsedQuery.query.page ? parseInt(parsedQuery.query.page) : 0
@@ -27,7 +27,7 @@ exports.handleRequest = async function (req, res) {
     }
     /*
     Elasticsearch ne permet pas une pagination simple comme MongoDB. Dès que l'index est un peu volumineux, on doit
-    utiliser le mécnisme de search_after. Ce mécanisme est décrit dans l'étude de cas.
+    utiliser le mécanisme de search_after. Ce mécanisme est décrit dans l'étude de cas.
      */
     if(parsedQuery.query.search_after) {
         filters.search_after = JSON.parse(parsedQuery.query.search_after)
@@ -64,7 +64,7 @@ Requête et affichage des dix tags les plus utilisés
 async function tags(esClient, res, parsedQuery) {
     /*
     On réalise une requête sur tous les documents de l'index tweet sans leur appliquer de filtres. On ne s'intéresse en
-    fait qu'à l'aggrégation des termes du champs hashtags. Par défaut l'aggrégation renvoie les dix premières valeurs
+    fait qu'à l'agrégation des termes du champs hashtags. Par défaut l'agrégation renvoie les dix premières valeurs
      */
     const page = await esClient.search({
         index: 'tweets',
@@ -80,12 +80,12 @@ async function tags(esClient, res, parsedQuery) {
 
     page.body.aggregations.tags.buckets.forEach(bucket => {
         /*
-        On itère sur les valeurs de l'aggrégation.
+        On itère sur les valeurs de l'agrégation.
         Chaque valeur est un objet bucket dont les deux champs nous intéressant sont :
         - bucket.key : la valeur du tag
         - bucket.doc_count : le nombre document de l'index contenant ce tag.
 
-        Si on avait spécifié un filtre à la requête, les conteurs auraient contenu le nombre de document correspondant
+        Si on avait spécifié un filtre à la requête, les compteurs auraient contenu le nombre de document correspondant
         au filtre et contenant le tag.
          */
         tagNav(res, bucket.key, bucket.doc_count, false)
@@ -99,7 +99,7 @@ async function tweets(esClient, res, filters) {
 // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl.html
         /*
         On définit dans q le filtre sur les documents de l'index "tweets"
-        Ici, on définit un filtre bolléen avec une liste vide de critère additif (must: [])
+        Ici, on définit un filtre booléen avec une liste vide de critère additif (must: [])
          */
         const q = {bool: {must: []}}
 
@@ -150,9 +150,9 @@ async function tweets(esClient, res, filters) {
         On exécute la requête sur l'indexe "tweets".
         Elle est ordonnées par :
         - date    : parce que c'est ce qu'on veut
-        - par _id : pour pouvoir utiliser la fonctionalité search_after, cf. cas d'usage
+        - par _id : pour pouvoir utiliser la fonctionnalité search_after, cf. cas d'usage
 
-        On définit enfin l'aggrégation des termes du champs "hashtags". Celà nous permettra d'avoir les les facettes
+        On définit enfin l'agrégation des termes du champs "hashtags". Cela nous permettra d'avoir les les facettes
         correspondant au filtre sur ce champ.
          */
         const search = {
@@ -251,7 +251,7 @@ function baseQueryString(filters) {
 
 /*
  *
- * Formattage : les fonction ci-dessous sont des fonctions d'affichage, elle ne sont pas à roprement parler intéressante
+ * Formatage : les fonctions ci-dessous sont des fonctions d'affichage, elle ne sont pas à proprement parler intéressantes
  * pour le cours, mais, si vous souhaitez comprendre le fonctionnement du script... allez-y !
  *
  */

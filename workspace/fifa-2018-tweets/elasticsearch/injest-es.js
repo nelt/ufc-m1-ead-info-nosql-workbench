@@ -22,8 +22,8 @@ exports.run = async function (args) {
     }
 
     /*
-    Ouverture d'un flux pour lire le fichier avec la librairie fs.
-    Le flux est ensuite passé (methode pipe) à la librairie csv-parse qui implémente un mécanisme de lecture asynchrone
+    Ouverture d'un flux pour lire le fichier avec la bibliothèque fs.
+    Le flux est ensuite passé (méthode pipe) à la bibliothèque csv-parse qui implémente un mécanisme de lecture asynchrone
     du fichier.
      */
     let stream = fs.createReadStream('./workspace/fifa-2018-tweets/data-set/FIFA.csv');
@@ -35,7 +35,7 @@ exports.run = async function (args) {
         }))
         .on('readable', async function(){
             /*
-            Cette fonction est appelée lors que des lignes du fchier CSV sont prètes à être traitées
+            Cette fonction est appelée lorsque des lignes du fichier CSV sont prêtes à être traitées
              */
             let row
             let lapStart = Date.now()
@@ -43,7 +43,7 @@ exports.run = async function (args) {
                 let tags = row.Hashtags ? row.Hashtags.split(',') : [];
 
                 /*
-                Insertion de d'un tweet :
+                Insertion d'un tweet :
                     - la variable row contient une ligne du fichier CSV
                     - on indexe le tweet dans l'index "tweets" en utilisant row.ID comme identifiant, de cette manière
                       la première passe du script créera le document dans l'index, une autre passe entraînera sa mise à
@@ -114,9 +114,9 @@ async function manageIndex(esClient) {
     try {
         /*
         Ensuite on affecte à l'index son mapping.
-        On défnit le type de deux champs :
+        On définit le type de deux champs :
         - le champ date est indexé en tant que date en parsant son contenu à partir des trois expression fournies
-        - le champ hashtags contient des mots clés, celà permettrat de les aggréger pour connaître le nombre de documents les contenant
+        - le champ hashtags contient des mots clés, cela permettra de les agréger pour connaître le nombre de documents les contenant
         Le type des autres champs sera déterminé par le moteur. Le plus souvent, il s'agira d'une indexation textuelle.
          */
         await esClient.indices.putMapping({
