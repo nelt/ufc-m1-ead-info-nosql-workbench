@@ -72,17 +72,14 @@ function page(res, userTimelineData, htagTimelineData, selectedTweet) {
     const formattedHtagTimelineData = formatTimelineData(htagTimelineData);
 
     res.write(
-        `
-            <?xml version="1.0" encoding="UTF-8" ?>
-            <!DOCTYPE html>
-            `
-    )
-    res.write(`
-    <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="fr" lang="fr" dir="ltr">
+    `
+    <!doctype html>
+    <html lang="fr">
       <head>
+        <meta charset="utf-8">
         <title>Tweet timelines</title>
-        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         
         <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
         <script type="text/javascript">
