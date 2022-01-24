@@ -91,11 +91,13 @@ async function redisStatus(res, callback) {
             '<pre>docker-compose up -d redis</pre>'
         )
         callback()
+        client.quit()
     });
     client.on("ready", function() {
         console.log("Connected successfully to redis server", client.connected)
         dbStatusStatement(res, 'Redis', 'success')
         callback()
+        client.quit()
     });
 }
 
