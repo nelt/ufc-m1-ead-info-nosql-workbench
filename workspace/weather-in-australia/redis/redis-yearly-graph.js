@@ -4,7 +4,8 @@ exports.handleRequest = async function (req, res) {
     const parsedQuery = url.parse(req.url, true);
 
     const redis = require("redis")
-    const client = redis.createClient({host: "redis"})
+    const client = redis.createClient({url: 'redis://redis:6379'})
+    await client.connect()
 
     /*
     On calcule la valeur courante du filtre depuis la requête.
@@ -21,58 +22,57 @@ exports.handleRequest = async function (req, res) {
     On commence par récupérer la liste des valeurs de filtre possible.
     La commande smembers permet de récupérer toutes les valeurs d'un Set
      */
-    client.smembers(["filter_range"], function (error, filterRange) {
-        try {
-            filterRange = filterRange.map(json => JSON.parse(json))
-            filterRange.sort((a, b) => {
-                if (a.city == b.city) {
-                    return a.year.localeCompare(b.year)
-                } else {
-                    return a.city.localeCompare(b.city)
-                }
-            })
-        } catch (e) {
-            console.error("error parsing filte ranges", e)
-            filterRange = []
-        }
-        /*
-        Le bucket contenant les valeurs est déterminer par la valeur du filtre
-        La commande zrange permet de récupérer un range de valeurs d'un SortedSet.
-        Ici, on demande le range [0, -1], ce qui correspond à récupérer toutes les valeurs. On aurait pus limiter le nombre
-        de valeurs. Par exemple, [0, 9] aurait permis de récupérer les 10 premières valeurs
-         */
-        const bucket = `${filters.city}-${filters.year}`
-        client.zrange([bucket, 0, -1], function (error, result) {
+    let filterRange = await client.sMembers("filter_range")
 
-            /*
-            Les valeurs stockées sont des chaîne de caractère encodant en JSON les échantillons.
-            On le désérialise et on transforme le timestamp at en Date
-             */
-            const data = result.map(json => {
-                const datum = JSON.parse(json)
-                datum.at = new Date(datum.at)
-                return datum;
-            })
-
-            /*
-            Gestion de l'affichage
-             */
-            res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'})
-            page(res,
-                `Le temps en Australie : Graphes annuels`,
-                `${filters.city} en ${filters.year}`,
-                `Évolution des températures minimales, maximales et pluviométrie à ${filters.city} en ${filters.year}`,
-                data,
-                filters,
-                filterRange
-            )
-
-            client.quit(function () {
-                console.info("bye...")
-                res.end()
-            })
+    try {
+        filterRange = filterRange.map(json => JSON.parse(json))
+        filterRange.sort((a, b) => {
+            if (a.city == b.city) {
+                return a.year.localeCompare(b.year)
+            } else {
+                return a.city.localeCompare(b.city)
+            }
         })
+    } catch (e) {
+        console.error("error parsing filte ranges", e)
+        filterRange = []
+    }
+    /*
+    Le bucket contenant les valeurs est déterminer par la valeur du filtre
+    La commande zrange permet de récupérer un range de valeurs d'un SortedSet.
+    Ici, on demande le range [0, -1], ce qui correspond à récupérer toutes les valeurs. On aurait pus limiter le nombre
+    de valeurs. Par exemple, [0, 9] aurait permis de récupérer les 10 premières valeurs
+     */
+    const bucket = `${filters.city}-${filters.year}`
+    let result = await client.zRange(bucket, 0, -1)
+
+    /*
+    Les valeurs stockées sont des chaîne de caractère encodant en JSON les échantillons.
+    On le désérialise et on transforme le timestamp at en Date
+     */
+    const data = result.map(json => {
+        const datum = JSON.parse(json)
+        datum.at = new Date(datum.at)
+        return datum;
     })
+
+    /*
+    Gestion de l'affichage
+     */
+    res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'})
+
+    console.log("page")
+    page(res,
+        `Le temps en Australie : Graphes annuels`,
+        `${filters.city} en ${filters.year}`,
+        `Évolution des températures minimales, maximales et pluviométrie à ${filters.city} en ${filters.year}`,
+        data,
+        filters,
+        filterRange
+    )
+    res.end()
+
+    await client.quit();
 }
 
 

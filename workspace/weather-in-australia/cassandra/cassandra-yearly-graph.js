@@ -1,19 +1,19 @@
 
 exports.handleRequest = async function (req, res) {
-    var url = require('url');
-    const parsedQuery = url.parse(req.url, true);
+    var url = require('url')
+    const parsedQuery = url.parse(req.url, true)
 
-    const cassandra = require('cassandra-driver');
+    const cassandra = require('cassandra-driver')
     const client = new cassandra.Client({
         contactPoints: ['cassandra'],
         localDataCenter: 'datacenter1'
-    });
+    })
 
     /*
     On calcule la valeur courante du filtre depuis la requête.
     Par défaut, on prend Sydney en 2017
      */
-    const queryFilter = parsedQuery.query.filter ? JSON.parse(decodeURIComponent(parsedQuery.query.filter)) : undefined;
+    const queryFilter = parsedQuery.query.filter ? JSON.parse(decodeURIComponent(parsedQuery.query.filter)) : undefined
     console.log("query filter: " , queryFilter)
     const filters = {
         city: queryFilter ? queryFilter.city : 'Sydney',
@@ -69,7 +69,7 @@ exports.handleRequest = async function (req, res) {
 
                 res.end()
             }
-        );
+        )
     })
 }
 

@@ -2,7 +2,7 @@ version: "3.7"
 services:
 
   workbench:
-    image: codingmatters/nosql-workbench:1.1.0
+    image: codingmatters/nosql-workbench:1.2.0
     volumes:
       - "./workspace:/usr/src/app/workspace"
     ports:
@@ -13,14 +13,14 @@ services:
     image: mongo:4.2.2
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.5.2
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.16.3
     environment:
       - discovery.type=single-node
     ports:
     - "9200:9200"
 
   cassandra:
-    image: cassandra:3.11.5
+    image: cassandra:4.0.1
 
   redis:
     image: redis:5

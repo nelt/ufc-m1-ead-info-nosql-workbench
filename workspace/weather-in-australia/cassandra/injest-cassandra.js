@@ -1,11 +1,12 @@
 exports.run = async function (args) {
-    const parse = require('csv-parse')
     const fs = require('fs')
+    const csv = require('fast-csv');
 
     const cassandra = require('cassandra-driver');
     const client = new cassandra.Client({
         contactPoints: ['cassandra'],
-        localDataCenter: 'datacenter1'
+        localDataCenter: 'datacenter1',
+        pooling: {maxRequestsPerConnection: 10000}
     });
 
 
@@ -34,9 +35,6 @@ exports.run = async function (args) {
         )
     `);
 
-    const start = Date.now();
-    let readCount = 0;
-
     let max = -1;
     if(args.length > 0) {
         max = parseInt(args[0])
@@ -51,62 +49,66 @@ exports.run = async function (args) {
     du fichier.
      */
     let stream = fs.createReadStream('./workspace/weather-in-australia/data-set/weatherAUS.csv');
+    let options = { headers: true }
+    if(max != -1) {
+        options.maxRows = max
+    }
+    let rowStoragePromises = []
+    let counter = {processed: 0, start: new Date(), end: false}
     await stream
-        .pipe(parse({
-            delimiter: ',',
-            skip_lines_with_error: true,
-            columns: true
-        }))
-        .on('readable', async function(){
-            /*
-            Cette fonction est appelée lors que des lignes du fchier CSV sont prètes à être traitées
-             */
-            let row
-            let lapStart = Date.now()
-            while (row = this.read()) {
-                /*
-                Insertion de d'un échantillon
-                 */
-                try {
-                    const query = 'INSERT INTO ufcead.weather_data(location, year, at, minTemp, maxTemp, rainfall) VALUES (?, ?, ?, ?, ?, ?)';
-                    /*
-                        Date: '2017-06-23',
-                        Location: 'Uluru',
-                        MinTemp: '5.4',
-                        MaxTemp: '26.9',
-                        Rainfall: '0'
-                     */
-                    if(row.MinTemp != 'NA' && row.MaxTemp != 'NA' && row.Rainfall != 'NA') {
-                        const result = await client.execute(query, [
-                            row.Location,
-                            row.Date.substring(0,4),
-                            Date.parse(row.Date),
-                            row.MinTemp,
-                            row.MaxTemp,
-                            row.Rainfall
-                        ], {prepare: true});
-                    }
-                } catch (e) {
-                    console.error("error indexing document : ", row)
-                    console.error("error was : ", e)
-                }
-
-                readCount++
-                if(readCount % 5000 == 0) {
-                    const elapsed = (Date.now() - lapStart) / 1000
-                    lapStart = Date.now()
-                    console.info(readCount + " rows read, last 5000 in " + elapsed + "s.")
-                }
-                if(readCount == max) {
-                    console.info("max read reached")
-                    this.end()
-                    return
-                }
-            }
+        .pipe(csv.parse(options))
+        .on('error', error => {
+            console.error(error)
         })
-        .on('end', function () {
-            const elapsed = (Date.now() - start) / 1000;
-            console.info("Read " + readCount + " rows data-set in " + elapsed + "s.")
+        .on('data', row => {
+            rowStoragePromises.push(storeRow(row, client, counter))
+        })
+        .on('end', async function(rowCount) {
+            await Promise.all(rowStoragePromises)
+            const elapsed = (Date.now() - counter.start) / 1000
+            console.info("Read " + counter.processed + " rows data-set in " + elapsed + "s.")
+            counter.end = true
+            await client.shutdown()
         })
 
+    showCounter(counter)
+
+}
+
+async function storeRow(row, client, counter) {
+    /*
+    Insertion de d'un échantillon
+     */
+    try {
+        const query = 'INSERT INTO ufcead.weather_data(location, year, at, minTemp, maxTemp, rainfall) VALUES (?, ?, ?, ?, ?, ?)';
+        /*
+            Date: '2017-06-23',
+            Location: 'Uluru',
+            MinTemp: '5.4',
+            MaxTemp: '26.9',
+            Rainfall: '0'
+         */
+        if(row.MinTemp != 'NA' && row.MaxTemp != 'NA' && row.Rainfall != 'NA') {
+            const result = await client.execute(query, [
+                row.Location,
+                row.Date.substring(0,4),
+                Date.parse(row.Date),
+                row.MinTemp,
+                row.MaxTemp,
+                row.Rainfall
+            ], {prepare: true});
+        }
+    } catch (e) {
+        console.error("error indexing document : ", row)
+        console.error("error was : ", e)
+    }
+    counter.processed++
+}
+
+function showCounter(counter) {
+    if(counter.end) return
+
+    const elapsed = (Date.now() - counter.start) / 1000
+    console.info("processed " + counter.processed + " rows in " + Math.floor(elapsed) + "s.")
+    setTimeout(() => showCounter(counter), 10 * 1000)
 }

@@ -1,15 +1,12 @@
 exports.run = async function (args) {
-    const parse = require('csv-parse')
     const fs = require('fs')
+    const csv = require('fast-csv')
 
     const redis = require("redis")
-    const client = redis.createClient({host: "redis"})
+    const client = redis.createClient({url: 'redis://redis:6379'})
+    await client.connect()
 
-
-    const start = Date.now();
-    let readCount = 0;
-
-    let max = -1;
+    let max = -1
     if(args.length > 0) {
         max = parseInt(args[0])
         console.info("will read " + max + " records from weatherAUS.csv")
@@ -23,77 +20,83 @@ exports.run = async function (args) {
     du fichier.
      */
     let stream = fs.createReadStream('./workspace/weather-in-australia/data-set/weatherAUS.csv');
-    await stream
-        .pipe(parse({
-            delimiter: ',',
-            skip_lines_with_error: true,
-            columns: true
-        }))
-        .on('readable', async function(){
+    let options = { headers: true }
+    if(max != -1) {
+        options.maxRows = max
+    }
+    let rowStoragePromises = []
+    let counter = {processed: 0, start: new Date(), end: false}
+    stream
+        .pipe(csv.parse(options))
+        .on('error', error => {
+            console.error(error)
+        })
+        .on('data', row => {
+            // stream.pause()
+            rowStoragePromises.push(storeRow(row, client, counter)
+                // .then(() => stream.resume())
+            )
+        })
+        .on('end', async function(rowCount) {
+            await Promise.all(rowStoragePromises)
+            const elapsed = (Date.now() - counter.start) / 1000
+            console.info("Read " + counter.processed + " rows data-set in " + elapsed + "s.")
+            counter.end = true
+            await client.quit();
+        })
+
+    showCounter(counter)
+}
+
+async function storeRow(row, client, counter) {
+    /*
+    Insertion de d'un échantillon
+     */
+    try {
+        /*
+            Date: '2017-06-23',
+            Location: 'Uluru',
+            MinTemp: '5.4',
+            MaxTemp: '26.9',
+            Rainfall: '0'
+         */
+        if(row.MinTemp != 'NA' && row.MaxTemp != 'NA' && row.Rainfall != 'NA') {
             /*
-            Cette fonction est appelée lors que des lignes du fchier CSV sont prètes à être traitées
+            On insère la données dans le bon bucket
+            On veut un bucket par ville et par an, on construit donc le nom du bucket en concaténant
+            ces deux valeurs.
              */
-            let row
-            let lapStart = Date.now()
-            while (row = this.read()) {
-                /*
-                Insertion de d'un échantillon
-                 */
-                try {
-                    /*
-                        Date: '2017-06-23',
-                        Location: 'Uluru',
-                        MinTemp: '5.4',
-                        MaxTemp: '26.9',
-                        Rainfall: '0'
-                     */
-                    if(row.MinTemp != 'NA' && row.MaxTemp != 'NA' && row.Rainfall != 'NA') {
-                        /*
-                        On insère la données dans le bon bucket
-                        On veut un bucket par ville et par an, on construit donc le nom du bucket en concaténant
-                        ces deux valeurs.
-                         */
-                        const year = row.Date.substring(0,4);
-                        const bucket = row.Location + "-" + year
-                        /*
-                        On va utiliser comme implémentation de bucket dans redis un "SortedSet", cf. Etude de cas.
-                        La commande ZADD ajoute un élément dans un sorted set avec comme ragument :
-                        - la clé du set, ici, le nom du bucket pour avoir un set par ville / année
-                        - le score de l'élément, c'est lui qui assure l'ordre dans le set, ici, on se sert du timestamp
-                        de la date de l'échantillon : il est unique et ordonne nos valeur comme nous souhaitons les afficher
-                        - la donnée, ici, nous encodons les données en json
-                         */
-
-                        client.zadd(bucket, Date.parse(row.Date), `{"at": ${Date.parse(row.Date)}, "minTemp": ${row.MinTemp},"maxTemp": ${row.MaxTemp},"rainfall": ${row.Rainfall}}`)
-
-                        /*
-                        On utilise bucket de type Set (sans relation d'ordre) pour dresser la liste des couple city / year
-                         */
-                        client.sadd("filter_range", `{"city":"${row.Location}","year":"${year}"}`)
-                    }
-                } catch (e) {
-                    console.error("error indexing document : ", row)
-                    console.error("error was : ", e)
-                }
-
-                readCount++
-                if(readCount % 5000 == 0) {
-                    const elapsed = (Date.now() - lapStart) / 1000
-                    lapStart = Date.now()
-                    console.info(readCount + " rows read, last 5000 in " + elapsed + "s.")
-                }
-                if(readCount == max) {
-                    console.info("max read reached")
-                    this.end()
-                    return
-                }
-            }
-        })
-        .on('end', function () {
-            const elapsed = (Date.now() - start) / 1000;
-            client.quit(function () {
-                console.info("Read " + readCount + " rows data-set in " + elapsed + "s.")
+            const year = row.Date.substring(0,4);
+            const bucket = row.Location + "-" + year
+            /*
+            On va utiliser comme implémentation de bucket dans redis un "SortedSet", cf. Etude de cas.
+            La commande ZADD ajoute un élément dans un sorted set avec comme argument :
+            - la clé du set, ici, le nom du bucket pour avoir un set par ville / année
+            - le score de l'élément, c'est lui qui assure l'ordre dans le set, ici, on se sert du timestamp
+            de la date de l'échantillon : il est unique et ordonne nos valeur comme nous souhaitons les afficher
+            - la donnée, ici, nous encodons les données en json
+             */
+            await client.zAdd(bucket, {
+                score: Date.parse(row.Date),
+                value: JSON.stringify({"at": Date.parse(row.Date), "minTemp": row.MinTemp,"maxTemp": row.MaxTemp,"rainfall": row.Rainfall})
             })
-        })
 
+            /*
+            On utilise bucket de type Set (sans relation d'ordre) pour dresser la liste des couple city / year
+             */
+            await client.sAdd("filter_range",JSON.stringify({"city":row.Location,"year":year}))
+        }
+    } catch (e) {
+        console.error("error indexing document : ", row)
+        console.error("error was : ", e)
+    }
+    counter.processed++
+}
+
+function showCounter(counter) {
+    if(counter.end) return
+
+    const elapsed = (Date.now() - counter.start) / 1000
+    console.info("processed " + counter.processed + " rows in " + Math.floor(elapsed) + "s.")
+    setTimeout(() => showCounter(counter), 10 * 1000)
 }

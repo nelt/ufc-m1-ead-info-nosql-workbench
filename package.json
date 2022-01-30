@@ -3,11 +3,12 @@
   "version": "1.0.0-dev",
   "description": "webapp enabling interacting with several NoSQL dbs for educational use.",
   "dependencies": {
-    "mongodb": "3.5.2",
-    "@elastic/elasticsearch": "7.5.0",
-    "cassandra-driver": "4.4.0",
-    "aerospike": "3.14.1",
-    "csv": "5.3.1"
+    "mongodb": "4.3.1",
+    "@elastic/elasticsearch": "7.16.0",
+    "cassandra-driver": "4.6.3",
+    "redis": "4.0.2",
+    "csv": "6.0.5",
+    "fast-csv": "4.3.6"
   },
   "keywords": [],
   "author": "Nel Taurisson <nel.taurisson@gmail.com>",
