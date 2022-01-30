@@ -1,6 +1,10 @@
 exports.run = async function (args) {
-    const parse = require('csv-parse')
     const fs = require('fs')
+    /*
+    On n'utilise pas la même csv librairie que pour les autres bases. ES ne peut pas indexer autant de document
+    au fil de l'eau, on doit utiliser l'API batch (cette API permet une indexation très rapide)
+     */
+    const csvBatch = require('csv-batch');
     const {Client} = require('@elastic/elasticsearch')
 
     const esClient = new Client({node: 'http://elasticsearch:9200'})
@@ -8,10 +12,7 @@ exports.run = async function (args) {
     /*
     Création de l'index et de son mapping. Fonction en fin de fichier
      */
-    await manageIndex(esClient);
-
-    const start = Date.now();
-    let readCount = 0;
+    await manageIndex(esClient)
 
     let max = -1;
     if(args.length > 0) {
@@ -26,71 +27,70 @@ exports.run = async function (args) {
     Le flux est ensuite passé (methode pipe) à la librairie csv-parse qui implémente un mécanisme de lecture asynchrone
     du fichier.
      */
+
     let stream = fs.createReadStream('./workspace/fifa-2018-tweets/data-set/FIFA.csv');
-    await stream
-        .pipe(parse({
-            delimiter: ',',
-            skip_lines_with_error: true,
-            columns: true
-        }))
-        .on('readable', async function(){
-            /*
-            Cette fonction est appelée lors que des lignes du fchier CSV sont prètes à être traitées
-             */
-            let row
-            let lapStart = Date.now()
-            while (row = this.read()) {
-                let tags = row.Hashtags ? row.Hashtags.split(',') : [];
+    let rowStoragePromises = []
+    let counter = {processed: 0, start: new Date(), end: false}
+    csvBatch(stream, {
+        batch: true,
+        batchSize: 100,
+        batchExecution: batch => rowStoragePromises.push(storeRowBatch(batch, esClient, counter))
+    }).then( async function(results) {
+        await Promise.all(rowStoragePromises)
+        console.log(`Processed ${results.totalRecords}`);
+        const elapsed = (Date.now() - counter.start) / 1000
+        console.info("Read " + counter.processed + " rows data-set in " + elapsed + "s.")
+        counter.end = true
+    })
 
-                /*
-                Insertion de d'un tweet :
-                    - la variable row contient une ligne du fichier CSV
-                    - on indexe le tweet dans l'index "tweets" en utilisant row.ID comme identifiant, de cette manière
-                      la première passe du script créera le document dans l'index, une autre passe entraînera sa mise à
-                      jour
-                 */
-                try {
-                    await esClient.index({
-                        index: 'tweets',
-                        id: row.ID,
-                        body: {
-                            lang: row.lang,
-                            date: row.Date,
-                            source: row.Source,
-                            tweet: row.Orig_Tweet,
-                            likes: row.Likes,
-                            rts: row.RTs,
-                            hashtags: tags,
-                            mentionNames: row.UserMentionNames ? row.UserMentionNames.split(',') : [],
-                            mentionIds: row.UserMentionID ? row.UserMentionID.split(',') : [],
-                            authorName: row.Name,
-                            authorPLace: row.Place,
-                            authorFollowers: row.Followers,
-                            authorFiends: row.Friends
-                        }
-                    });
-                } catch (e) {
-                    console.error("error indexing document : ", e)
-                }
+    showCounter(counter)
+}
 
-                readCount++
-                if(readCount % 5000 == 0) {
-                    const elapsed = (Date.now() - lapStart) / 1000
-                    lapStart = Date.now()
-                    console.info(readCount + " rows read, last 5000 in " + elapsed + "s.")
-                }
-                if(readCount == max) {
-                    console.info("max read reached")
-                    this.end()
-                    return
-                }
-            }
-        })
-        .on('end', function () {
-            const elapsed = (Date.now() - start) / 1000;
-            console.info("Read " + readCount + " rows data-set in " + elapsed + "s.")
-        })
+async function storeRowBatch(batch, esClient, counter) {
+    let indexActions = []
+    batch.forEach(row => {
+        let tags = row.Hashtags ? row.Hashtags.split(',') : [];
+        /*
+        Insertion de d'un tweet :
+            - la variable row contient une ligne du fichier CSV
+            - on indexe le tweet dans l'index "tweets" en utilisant row.ID comme identifiant, de cette manière
+              la première passe du script créera le document dans l'index, une autre passe entraînera sa mise à
+              jour
+         */
+        const doc = {
+            id: row.ID,
+            lang: row.lang,
+            date: row.Date,
+            source: row.Source,
+            tweet: row.Orig_Tweet,
+            likes: row.Likes,
+            rts: row.RTs,
+            hashtags: tags,
+            mentionNames: row.UserMentionNames ? row.UserMentionNames.split(',') : [],
+            mentionIds: row.UserMentionID ? row.UserMentionID.split(',') : [],
+            authorName: row.Name,
+            authorPLace: row.Place,
+            authorFollowers: row.Followers,
+            authorFiends: row.Friends
+        };
+        /*
+        En utilisant l'API Bulk, on doit construire un tableau dont les éléments vont par deux :
+        1. l'action à réaliser, ici, une action d'indexation dans l'index  'tweets'
+        2. la donnée à utiliser pour réaliser cette action, ici, le document à indexer
+         */
+        indexActions.push({index: { _index: 'tweets' }}, doc)
+    })
 
+    /*
+    Une fois le tableau d'action à réaliser construit, on le transmet à l'API Bulk :
+     */
+    const { body: bulkResponse } = await esClient.bulk({
+        refresh: true,
+        // body: body
+        body: indexActions
+    })
+
+    counter.processed = counter.processed + batch.length
 }
 
 async function manageIndex(esClient) {
@@ -146,4 +146,12 @@ async function manageIndex(esClient) {
     // } catch (e) {
     //     console.error("error managing tweet index", e)
     // }
+}
+
+function showCounter(counter) {
+    if(counter.end) return
+
+    const elapsed = (Date.now() - counter.start) / 1000
+    console.info("processed " + counter.processed + " rows in " + Math.floor(elapsed) + "s.")
+    setTimeout(() => showCounter(counter), 10 * 1000)
 }

@@ -3,17 +3,14 @@ exports.handleRequest = async function(req, res) {
     res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'})
     pageStart(res, "NoSQL Workbench : status")
 
-
-    mongodbStatus(res, function () {
-        elasticsearchStatus(res, function () {
-            cassandraStatus(res, function () {
-                redisStatus(res, function () {
-                    pageEnd(res)
-                    res.end()
-                })
-            })
+    mongodbStatus(res)
+        .then(() => elasticsearchStatus(res))
+        .then(() => cassandraStatus(res))
+        .then(() => redisStatus(res))
+        .finally(() => {
+            pageEnd(res)
+            res.end()
         })
-    })
 }
 
 async function mongodbStatus(res, callback) {
@@ -33,7 +30,6 @@ async function mongodbStatus(res, callback) {
             '<pre>docker-compose up -d mongo</pre>'
         )
     }
-    callback()
 }
 
 async function elasticsearchStatus(res, callback) {
@@ -53,7 +49,6 @@ async function elasticsearchStatus(res, callback) {
             '<pre>docker-compose up -d elasticsearch</pre>'
         )
     }
-    callback()
 }
 
 async function cassandraStatus(res, callback) {
@@ -76,13 +71,17 @@ async function cassandraStatus(res, callback) {
             '<pre>docker-compose up -d cassandra</pre>'
         )
     }
-    callback()
 }
 
 async function redisStatus(res, callback) {
     const redis = require("redis")
-    const client = redis.createClient({host: "redis"})
-
+    const client = redis.createClient({
+        url: 'redis://redis:6379'
+        ,
+        socket: {
+            reconnectStrategy: retries => new Error('failing fast')
+        }
+    });
     client.on("error", function(error) {
         console.log("Can't connect to redis server !! " + error)
         dbStatusStatement(res, 'Redis', 'danger',
@@ -90,13 +89,17 @@ async function redisStatus(res, callback) {
             '<p>Pour lancer la base exécuter :</p>\n' +
             '<pre>docker-compose up -d redis</pre>'
         )
+        console.log("calling back...")
         callback()
     });
     client.on("ready", function() {
-        console.log("Connected successfully to redis server", client.connected)
+        console.log("Connected successfully to redis server")
         dbStatusStatement(res, 'Redis', 'success')
-        callback()
     });
+    try {
+        await client.connect();
+        await client.quit();
+    } catch (e) {}
 }
 
 

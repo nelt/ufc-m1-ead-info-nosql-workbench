@@ -198,7 +198,7 @@ async function tweets(esClient, res, filters) {
             On itère sur les résultats de la requête et on affiche les tweets
              */
             tweet = hit._source;
-            tableRow(res, tweet.date, tweet.authorName, tweet.tweet, tweet.hashtags.join(', '))
+            tableRow(res, tweet.date, tweet.authorName, tweet.tweet.replaceAll("\n", "<br/>"), tweet.hashtags.join(', '))
         })
 
         tableEnd(res)

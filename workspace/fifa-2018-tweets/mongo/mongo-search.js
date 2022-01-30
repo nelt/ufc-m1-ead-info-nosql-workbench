@@ -86,7 +86,7 @@ async function tweets(db, res, filters) {
         const tweets = db.collection('tweets')
 
         /*
-        On va construire dan sl'objet q le filtre de la requête à partir duquel on construira un curseur.
+        On va construire dans l'objet q le filtre de la requête à partir duquel on construira un curseur.
          */
         q = {}
         if(filters.tag) {
@@ -117,7 +117,7 @@ async function tweets(db, res, filters) {
             .find(q)
             .sort({date: 1}).limit(filters.pageSize).skip(filters.pageNumber * 30)
 
-        filters.total = await cursor.count()
+        filters.total = await tweets.find(q).count()
         filters.lastPage = Math.floor(filters.total / filters.pageSize)
         filters.start = filters.pageNumber * filters.pageSize + 1
         filters.end = Math.min(filters.start + filters.pageSize - 1, filters.total)
@@ -131,7 +131,7 @@ async function tweets(db, res, filters) {
             On itère sur le contenu du curseur pour afficher les tweets
              */
             const tweet = await cursor.next()
-            tableRow(res, tweet.date, tweet.authorName, tweet.tweet, tweet.hashtags.join(', '))
+            tableRow(res, tweet.date, tweet.authorName, tweet.tweet.replaceAll("\n", "<br/>"), tweet.hashtags.join(', '))
         }
         tableEnd(res)
         tweetContainerEnd(res)
