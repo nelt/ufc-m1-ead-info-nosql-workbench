@@ -3,19 +3,20 @@ exports.handleRequest = async function (req, res) {
     var url = require('url');
     const parsedQuery = url.parse(req.url, true);
 
-    // const MongoClient = require('mongodb').MongoClient
-    // const client = await MongoClient.connect('mongodb://mongo:27017', { useUnifiedTopology: true })
+    const MongoClient = require('mongodb').MongoClient
+    const mongo = await MongoClient.connect('mongodb://mongo:27017', { useUnifiedTopology: true })
 
-    const client = null
+    const redis = require("redis")
+    const redisClient = redis.createClient({url: 'redis://redis:6379'})
+    await redisClient.connect()
 
-    page(res, await userTimelineData(client), await htagTimelineData(client), await selectedTweet(parsedQuery.query.selectedTweetId, client))
+    page(res, await userTimelineData(redisClient), await htagTimelineData(redisClient), await selectedTweet(parsedQuery.query.selectedTweetId, mongo))
     res.end()
 }
 
-async function userTimelineData(client) {
+async function userTimelineData(redisClient) {
     /*
-    Remplacez par le résultat d'une requête synchrone :
-    const result = await client.execute("SELECT ... WHERE a = ?", [a], {prepare: true})
+    Remplacez par le résultat d'une requête redis
      */
 
     return [
@@ -29,10 +30,9 @@ async function userTimelineData(client) {
     ]
 }
 
-async function htagTimelineData(client) {
+async function htagTimelineData(redisClient) {
     /*
-    Remplacez par le résultat d'une requête synchrone :
-    const result = await client.execute("SELECT ... WHERE a = ?", [a], {prepare: true})
+    Remplacez par le résultat d'une requête redis
      */
 
     return [
@@ -50,8 +50,7 @@ async function htagTimelineData(client) {
 async function selectedTweet(id, client) {
     if(id) {
         /*
-        Remplacez par le résultat d'une requête synchrone :
-        const result = await client.execute("SELECT ... WHERE a = ?", [a], {prepare: true})
+        Remplacez par le résultat d'une requête mongo
          */
 
         return {
